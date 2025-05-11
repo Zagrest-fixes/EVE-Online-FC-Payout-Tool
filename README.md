@@ -2,7 +2,7 @@
 Tool to help fc do less and faster paperwork when doing payouts
 
 
-# How to make .exe below
+# How to make .exe below (IF YOU WANT TO RUN IT USING PYTHON I ASSUME YOU ARE EXPERIENCED TO FIGURE IT OUT YOURSELF :))
 
 
 # 🚀 FC_Payout_Tool_v1.0 - Full Installation Guide
