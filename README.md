@@ -128,10 +128,6 @@ Make sure `playwright-browsers/` is copied next to your `.exe`.
 
 ---
 
-## ✅ Done!
-
-Enjoy your FC Payout Tool. Fly safe o7
-
 ## 🎉 You're Done!
 
 Enjoy using the FC Payout Tool! Fly safe o7
