@@ -5,27 +5,27 @@ Tool to help fc do less and faster paperwork when doing payouts
 # How to make .exe below (IF YOU WANT TO RUN IT USING PYTHON, AND NOT FOLLOW INSTRUCTIONS HOW TO BUILD IN TO .EXE I ASSUME YOU ARE EXPERIENCED ENOUGH TO FIGURE IT OUT YOURSELF :))
 
 
-# 🚀 FC_Payout_Tool_v1.0 - Full Installation Guide
 
-This guide explains step-by-step how to set up and run the **FC_Payout_Tool_v1.0**. It includes all required Python packages and configuration needed for zKillboard importing, clipboard copying, and Playwright support.
+# ✅ FC Payout Tool v1.0 - Installation & Setup Guide
+
+This is the fully verified setup guide to run the FC Payout Tool v1.0.
 
 ---
 
-## ✅ Step 1: Install Python
+## 🚀 Step 1: Install Python
 
 1. Go to: [https://www.python.org/downloads/](https://www.python.org/downloads/)
-2. Download and install **Python 3.9 or newer**
-3. During installation, **check this box**:
+2. Download **Python 3.9 or newer**
+3. Run the installer
+
+**IMPORTANT:** During installation, check the box:
 > ✅ "Add Python to PATH"
 
 ---
 
-## ✅ Step 2: Open Terminal or PowerShell
+## ✅ Step 2: Open PowerShell or Terminal
 
-- On **Windows**: Press `Win + R`, type `powershell`, press **Enter**
-- On **macOS/Linux**: Open **Terminal**
-
-Navigate to the folder containing your payout tool:
+Navigate to the folder where the script is saved:
 
 ```bash
 cd C:\Users\YourName\Documents\fcpayout
@@ -35,64 +35,72 @@ cd C:\Users\YourName\Documents\fcpayout
 
 ## ✅ Step 3: Install Required Python Packages
 
-Run the following command to install all dependencies:
+Run the following command:
 
 ```bash
-pip install playwright pyperclip asyncio
+pip install playwright pyperclip
 ```
 
 These packages are used for:
-- `playwright`: fetching data from zKillboard
-- `pyperclip`: copying mail to clipboard
-- `asyncio`: managing asynchronous scraping
+- `playwright` – web scraping zKillboard
+- `pyperclip` – copying in-game mail text to clipboard
+
+> Note: `asyncio` is built into Python — no need to install it.
 
 ---
 
-## ✅ Step 4: Set Local Browser Path for Playwright
+## ✅ Step 4: Set Local Playwright Browser Path
 
-Set the Playwright browser path to a local folder. This is required to bundle with `.exe` or to avoid permission issues:
+Your script forces the use of a local browser folder, so you must set this environment variable:
+
+### On Windows PowerShell:
 
 ```powershell
 $env:PLAYWRIGHT_BROWSERS_PATH = "$PWD\playwright-browsers"
 ```
 
-> This sets a local browser path so Playwright installs into your current directory.
+### On macOS/Linux:
+
+```bash
+export PLAYWRIGHT_BROWSERS_PATH="$PWD/playwright-browsers"
+```
+
+This ensures that browser binaries are stored locally and work with `.exe` if needed.
 
 ---
 
-## ✅ Step 5: Install Chromium for Playwright
+## ✅ Step 5: Install Playwright Chromium Browser
 
-Install the Chromium browser engine into the local folder:
+Run this command after setting the env variable:
 
 ```bash
 python -m playwright install chromium
 ```
 
-This creates a `playwright-browsers` folder in your directory.
+This installs Chromium into the `playwright-browsers/` folder.
 
 ---
 
 ## ✅ Step 6: Run the Tool
 
-To start the app, simply run:
+To launch the FC payout GUI:
 
 ```bash
 python FC_Payout_Tool_v1.0.py
 ```
 
-The GUI allows you to:
-- Paste zKillboard killmail links
+You will be able to:
+- Paste zKillboard links
 - Enter Buyback ISK amount
-- Bulk import pilots (with optional charIDs for clickable links)
-- Toggle Scout and Include status
-- Remove or clear pilots
-- Generate in-game mail and copy it to clipboard
+- Import pilots in bulk or from killmails
+- Mark scouts and exclude pilots from payout
+- Automatically generate an in-game mail and copy to clipboard
 
 ---
 
-## ✅ Clipboard Fix for Linux
+## 🧠 Optional Fix for Linux Clipboard
 
-If `pyperclip` doesn't work on Linux, run:
+If `pyperclip` doesn’t work on Linux, install `xclip`:
 
 ```bash
 sudo apt install xclip
@@ -100,38 +108,29 @@ sudo apt install xclip
 
 ---
 
-## ⚙️ Optional: Build into Executable (.exe)
+## ⚙️ Optional: Build a Standalone Executable (.exe)
 
-To convert this script into a standalone `.exe` file:
+To convert the script to a portable `.exe` file:
 
-### Step A: Install PyInstaller
+1. Install PyInstaller:
 
 ```bash
 pip install pyinstaller
 ```
 
-### Step B: Build the Executable
+2. Build your `.exe`:
 
 ```bash
 pyinstaller --onefile --add-data "playwright-browsers;playwright-browsers" FC_Payout_Tool_v1.0.py
 ```
 
-This generates the `.exe` inside the `dist/` folder. Make sure `playwright-browsers/` is copied alongside the `.exe`.
+Make sure `playwright-browsers/` is copied next to your `.exe`.
 
 ---
 
-## 🆘 Troubleshooting
+## ✅ Done!
 
-- If a browser or Playwright fails to load, try deleting the `playwright-browsers/` folder and reinstall using:
-```bash
-python -m playwright install chromium
-```
-
-- If copy to clipboard doesn't work:
-  - On Linux: install `xclip` as shown above
-  - On Windows/macOS: should work out of the box
-
----
+Enjoy your FC Payout Tool. Fly safe o7
 
 ## 🎉 You're Done!
 
