@@ -2,7 +2,7 @@
 Tool to help fc do less and faster paperwork when doing payouts
 
 
-# How to make .exe % run below
+# How to make .exe & run below
 
 
 
