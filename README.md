@@ -92,7 +92,7 @@ python FC_Payout_Tool_v1.0.py
 You will be able to:
 - Paste zKillboard links
 - Enter Buyback ISK amount
-- Import pilots in bulk from br.evetools.org by going to report ---> composition ---> chars and copyting pilots including their photo and name or from killmails by pasating zkill link.
+- Import pilots in bulk from br.evetools.org by going to report ---> composition ---> chars and copying pilots including their photo and name or from killmails by pasating zkill link.
 EXAMPLE:
 ```
 charID-0123456789
