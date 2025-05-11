@@ -2,7 +2,7 @@
 Tool to help fc do less and faster paperwork when doing payouts
 
 
-# How to make .exe below (IF YOU WANT TO RUN IT USING PYTHON, AND NOT FOLLOW INSTRUCTIONS HOW TO BUILD IN TO .EXE I ASSUME YOU ARE EXPERIENCED ENOUGH TO FIGURE IT OUT YOURSELF :))
+# How to make .exe % run below
 
 
 
