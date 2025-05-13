@@ -132,6 +132,11 @@ pip install pyinstaller
 ```bash
 pyinstaller --onefile --add-data "playwright-browsers;playwright-browsers" FC_Payout_Tool_v1.0.py
 ```
+OR
+
+```bash
+pyinstaller --onefile --noconsole .\FC_Payout_Tool_v1.0.py
+```
 
 Make sure `playwright-browsers/` is copied next to your `.exe`.
 
