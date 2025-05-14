@@ -86,7 +86,7 @@ This installs Chromium into the `playwright-browsers/` folder.
 To launch the FC payout GUI:
 
 ```bash
-python FC_Payout_Tool_v1.0.py
+python FC_Payout_Tool_v1.1.py
 ```
 
 You will be able to:
@@ -130,12 +130,12 @@ pip install pyinstaller
 2. Build your `.exe`:
 
 ```bash
-pyinstaller --onefile --add-data "playwright-browsers;playwright-browsers" FC_Payout_Tool_v1.0.py
+pyinstaller --onefile --add-data "playwright-browsers;playwright-browsers" FC_Payout_Tool_v1.1.py
 ```
 OR
 
 ```bash
-pyinstaller --onefile --noconsole .\FC_Payout_Tool_v1.0.py
+pyinstaller --onefile --noconsole .\FC_Payout_Tool_v1.1.py
 ```
 
 Make sure `playwright-browsers/` is copied next to your `.exe`.
