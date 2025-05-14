@@ -198,6 +198,11 @@ class FCPayoutApp:
     def copy_mail(self):
         scouts = [p for p in self.participants if p.included and p.scout]
         lines = [p for p in self.participants if p.included and not p.scout]
+        line_summary = ", ".join([
+            f"<url=showinfo:1383//{p.character_id}>{p.name}</url>"
+            for p in self.participants if p.included and not p.scout and p.character_id
+        ])
+
         scout_lines = "\n".join([
             f"- <url=showinfo:1383//{p.character_id}>{p.name}</url> (50% = {p.share:,.2f} ISK)" if p.character_id else f"- {p.name} (50% = {p.share:,.2f} ISK)"
             for p in scouts
@@ -206,7 +211,11 @@ class FCPayoutApp:
             f"- <url=showinfo:1383//{p.character_id}>{p.name}</url>: {p.share:,.2f} ISK" if p.character_id else f"- {p.name}: {p.share:,.2f} ISK"
             for p in lines
         ])
-        message = f"""Hey everyone,
+        message = f"""
+SEND TO:
+{line_summary if line_summary else 'None'}
+        
+Hey everyone,
 
 Thanks for joining the op! Here's the payout for the recent loot buyback.
 
