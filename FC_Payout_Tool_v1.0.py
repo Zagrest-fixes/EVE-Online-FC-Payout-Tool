@@ -23,7 +23,7 @@ class Participant:
 class FCPayoutApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("FC Payout Tool(v1.0)")
+        self.root.title("FC Payout Tool(v1.1)")
 
         self.participants = []
         self.buyback_isk = 0.0
