@@ -6,9 +6,9 @@ Tool to help fc do less and faster paperwork when doing payouts
 
 
 
-# ✅ FC Payout Tool v1.0 - Installation & Setup Guide
+# ✅ FC Payout Tool v1.1 - Installation & Setup Guide
 
-This is the fully verified setup guide to run the FC Payout Tool v1.0.
+This is the fully verified setup guide to run the FC Payout Tool v1.1.
 
 ---
 
