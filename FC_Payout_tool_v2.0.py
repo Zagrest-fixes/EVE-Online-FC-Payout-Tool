@@ -38,7 +38,7 @@ class Participant:
 class FCPayoutApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("FC Payout Tool (v2.0)")
+        self.root.title("FC Payout Tool (v2.1)")
 
         self.default_dynamic_shares = None
 
