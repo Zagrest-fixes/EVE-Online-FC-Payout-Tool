@@ -38,7 +38,7 @@ cd C:\Users\YourName\Documents\fcpayout
 Run the following command:
 
 ```bash
-pip install playwright pyperclip requests
+pip install pyperclip requests
 ```
 
 These packages are used for:
