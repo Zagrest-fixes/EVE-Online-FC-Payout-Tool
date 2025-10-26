@@ -6,9 +6,9 @@ Tool to help fc do less and faster paperwork when doing payouts
 
 
 
-# ✅ FC Payout Tool v1.1 - Installation & Setup Guide
+# ✅ FC Payout Tool v2.0 - Installation & Setup Guide
 
-This is the fully verified setup guide to run the FC Payout Tool v1.1.
+This is the fully verified setup guide to run the FC Payout Tool v2.0.
 
 ---
 
@@ -38,70 +38,30 @@ cd C:\Users\YourName\Documents\fcpayout
 Run the following command:
 
 ```bash
-pip install playwright pyperclip
+pip install pyperclip requests
 ```
 
 These packages are used for:
-- `playwright` – web scraping zKillboard
 - `pyperclip` – copying in-game mail text to clipboard
+- `requests` - gets character ids from the esi
 
 > Note: `asyncio` is built into Python — no need to install it.
 
 ---
 
-## ✅ Step 4: Set Local Playwright Browser Path
-
-Your script forces the use of a local browser folder, so you must set this environment variable:
-
-### On Windows PowerShell:
-
-```powershell
-$env:PLAYWRIGHT_BROWSERS_PATH = "$PWD\playwright-browsers"
-```
-
-### On macOS/Linux:
-
-```bash
-export PLAYWRIGHT_BROWSERS_PATH="$PWD/playwright-browsers"
-```
-
-This ensures that browser binaries are stored locally and work with `.exe` if needed.
-
----
-
-## ✅ Step 5: Install Playwright Chromium Browser
-
-Run this command after setting the env variable:
-
-```bash
-python -m playwright install chromium
-```
-
-This installs Chromium into the `playwright-browsers/` folder.
-
----
-
-## ✅ Step 6: Run the Tool
+## ✅ Step 4: Run the Tool
 
 To launch the FC payout GUI:
 
 ```bash
-python FC_Payout_Tool_v1.1.py
+python FC_Payout_Tool_v2.0.py
 ```
 
 You will be able to:
-- Paste zKillboard links
 - Enter Buyback ISK amount
-- Import pilots in bulk from br.evetools.org by going to report ---> composition ---> chars and copying pilots including their photo and name or from killmails by pasating zkill link.
-EXAMPLE:
-```
-charID-0123456789
-NAME
-charID-0123456789
-NAME
-charID-0123456789
-NAME
-```
+- Import pilots in bulk from br.evetools.org by going to report ---> composition ---> chars and copying pilots including their photo and name.
+- Import pilots in bulk by name with a list of names each on its own line.
+- Import pilots from a fat link by copy pasting the names (can and likely will include the system and ship they were in when they clicked the link. These will be ignored)
 - Mark scouts and exclude pilots from payout
 - Automatically generate an in-game mail and copy to clipboard
 
@@ -130,12 +90,12 @@ pip install pyinstaller
 2. Build your `.exe`:
 
 ```bash
-pyinstaller --onefile --add-data "playwright-browsers;playwright-browsers" FC_Payout_Tool_v1.1.py
+pyinstaller --onefile --add-data "playwright-browsers;playwright-browsers" FC_Payout_Tool_v2.0.py
 ```
 OR
 
 ```bash
-pyinstaller --onefile --noconsole .\FC_Payout_Tool_v1.1.py
+pyinstaller --onefile --noconsole .\FC_Payout_Tool_v2.0.py
 ```
 
 Make sure `playwright-browsers/` is copied next to your `.exe`.
