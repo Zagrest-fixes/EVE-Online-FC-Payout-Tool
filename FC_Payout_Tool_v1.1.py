@@ -45,7 +45,7 @@ class FCPayoutApp:
         button_frame = tk.Frame(root)
         button_frame.pack(pady=4)
         tk.Button(button_frame, text="Import zKill Links", command=self.start_import).pack(side=tk.LEFT, padx=4)
-        tk.Button(button_frame, text="Bulk Import Pilots", command=self.import_bulk_characters).pack(side=tk.LEFT, padx=4)
+        tk.Button(button_frame, text="Import From BR", command=self.import_br_characters).pack(side=tk.LEFT, padx=4)
         tk.Button(button_frame, text="Recalculate", command=self.recalculate_shares).pack(side=tk.LEFT, padx=4)
         tk.Button(button_frame, text="Remove Selected", command=self.remove_selected).pack(side=tk.LEFT, padx=4)
         tk.Button(button_frame, text="Clear All", command=self.clear_all).pack(side=tk.LEFT, padx=4)
@@ -234,21 +234,15 @@ Fly safe,
         messagebox.showinfo("Copied", "Payout mail copied to clipboard.")
 
 
-    def import_bulk_characters(self):
-        raw = simpledialog.askstring("Bulk Import", "Paste pilot data in format:\ncharID-########\nName")
-        if raw:
-            lines = raw.strip().splitlines()
-            char_id = None
-            for line in lines:
-                line = line.strip()
-                if line.lower().startswith("charid"):
-                    match = re.match(r"charID[-: ]?(\d+)", line, re.IGNORECASE)
-                    if match:
-                        char_id = match.group(1)
-                elif line:
-                    self.participants.append(Participant(line, character_id=char_id))
-                    char_id = None
-            self.refresh_tree()
+    def import_br_characters(self):
+        raw = simpledialog.askstring("BR Import", "Paste pilot data in format:\ncharID-########\nName")
+        matches = re.findall(r"charID[-: ]?(?P<char_id>\d+)\n(?P<name>.*)\n", raw)
+        for match in matches:
+            id = match[0]
+            name = match[1]
+            self.participants.append(Participant(name, character_id=id))
+        
+        self.refresh_tree()
 
 
 if __name__ == "__main__":
