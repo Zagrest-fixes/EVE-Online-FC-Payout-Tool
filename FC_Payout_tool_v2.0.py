@@ -293,6 +293,8 @@ Line Members:
     def add_participant(self, participant):
         for existing_participant in self.participants:
             if existing_participant.name == participant.name:
+                if existing_participant.character_id is None and participant.character_id is not None:
+                    existing_participant.character_id = participant.character_id
                 return
         
         self.participants.append(participant)
