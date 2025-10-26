@@ -6,9 +6,9 @@ Tool to help fc do less and faster paperwork when doing payouts
 
 
 
-# ✅ FC Payout Tool v1.1 - Installation & Setup Guide
+# ✅ FC Payout Tool v2.0 - Installation & Setup Guide
 
-This is the fully verified setup guide to run the FC Payout Tool v1.1.
+This is the fully verified setup guide to run the FC Payout Tool v2.0.
 
 ---
 
@@ -90,12 +90,12 @@ pip install pyinstaller
 2. Build your `.exe`:
 
 ```bash
-pyinstaller --onefile --add-data "playwright-browsers;playwright-browsers" FC_Payout_Tool_v1.1.py
+pyinstaller --onefile --add-data "playwright-browsers;playwright-browsers" FC_Payout_Tool_v2.0.py
 ```
 OR
 
 ```bash
-pyinstaller --onefile --noconsole .\FC_Payout_Tool_v1.1.py
+pyinstaller --onefile --noconsole .\FC_Payout_Tool_v2.0.py
 ```
 
 Make sure `playwright-browsers/` is copied next to your `.exe`.
