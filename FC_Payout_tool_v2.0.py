@@ -33,11 +33,14 @@ class Participant:
         self.scout = scout
         self.share = 0.0
         self.character_id = character_id
+        self.num_shares = 1
 
 class FCPayoutApp:
     def __init__(self, root):
         self.root = root
         self.root.title("FC Payout Tool (v2.0)")
+
+        self.default_dynamic_shares = None
 
         self.participants = []
         self.buyback_isk = 0.0
@@ -74,9 +77,12 @@ class FCPayoutApp:
         tk.Button(button_frame, text="Copy Mail", command=self.copy_payout_mail, bg="#66ff66").pack(
             side=tk.LEFT, padx=4, expand=True
         )
+        tk.Button(button_frame, text="Toggle Dynamic Shares", command=self.toggle_dynamic_shares, bg="#66ffff").pack(
+            side=tk.LEFT, padx=4, expand=True
+        )
 
         tk.Label(root, text="Participants:").pack(anchor="w", padx=8, pady=(10, 0))
-        self.participant_tree = ttk.Treeview(root, columns=("Include", "Scout", "Name", "Found ID", "Share"), show="headings")
+        self.participant_tree = ttk.Treeview(root, columns=("Include", "Scout", "Name", "Found ID", "Share Count", "Share"), show="headings")
         self.participant_tree.tag_configure("excluded", background="#ffd6d6")
         self.participant_tree.tag_configure("included", font=("Segoe UI", 10))
         self.participant_tree.tag_configure("boldshare", font=("Segoe UI", 10, "bold"))
@@ -123,6 +129,15 @@ class FCPayoutApp:
             p.included = not p.included
         elif col == '#2':
             p.scout = not p.scout
+        elif col == '#5':
+            raw = simpledialog.askstring("Participant Shares", "Enter the number of shares this participant should recieve.")
+            try:
+                shares = int(raw.strip())
+            except ValueError:
+                print('Input value is not an integer')
+                return
+            p.num_shares = shares
+
         self.recalculate_shares()
 
     def on_buyback_focus_out(self, event):
@@ -158,16 +173,31 @@ class FCPayoutApp:
             scout_pool = 0
             line_pool = self.buyback_isk
 
-        scout_share = scout_pool / len(scouts) if scouts else 0
-        line_share = line_pool / len(lines) if lines else 0
+        if self.dynamic_shares_enabled():
+            num_scout_shares = sum(p.num_shares for p in scouts)
+            num_line_shares = sum(p.num_shares for p in lines)
 
-        for p in self.participants:
-            if not p.included:
-                p.share = 0.0
-            elif p.scout:
-                p.share = scout_share
-            else:
-                p.share = line_share
+            scout_share = scout_pool / num_scout_shares if num_scout_shares > 0 else 0
+            line_share = line_pool / num_line_shares if num_line_shares > 0 else 0
+
+            for p in self.participants:
+                if not p.included:
+                    p.share = 0.0
+                elif p.scout:
+                    p.share = scout_share * p.num_shares
+                else:
+                    p.share = line_share * p.num_shares
+        else:
+            scout_share = scout_pool / len(scouts) if scouts else 0
+            line_share = line_pool / len(lines) if lines else 0
+
+            for p in self.participants:
+                if not p.included:
+                    p.share = 0.0
+                elif p.scout:
+                    p.share = scout_share
+                else:
+                    p.share = line_share
 
         self.refresh_tree()
 
@@ -184,6 +214,7 @@ class FCPayoutApp:
                 "Yes" if p.scout else "No",
                 p.name,
                 "Yes" if p.character_id is not None else "No",
+                p.num_shares if self.dynamic_shares_enabled() else "NA",
                 f"{p.share:,.2f}"
             ), tags=(tag,))
 
@@ -296,9 +327,34 @@ Line Members:
                 if existing_participant.character_id is None and participant.character_id is not None:
                     existing_participant.character_id = participant.character_id
                 return
-        
+            
+        if self.default_dynamic_shares is not None:
+            participant.num_shares = self.default_dynamic_shares
         self.participants.append(participant)
 
+    def toggle_dynamic_shares(self):
+        raw = simpledialog.askstring("Dynamic Share Default", "Enter the default number of shares or 'off' to disable dynamic shares.")
+        if raw is None:
+            return
+        raw = raw.strip()
+        if raw.lower() == 'off':
+            self.default_dynamic_shares = None
+            self.refresh_tree()
+            return
+        try:
+            default_shares = int(raw.strip())
+        except ValueError:
+            print('Input value is not an integer')
+            return
+        for participant in self.participants:
+            participant.num_shares = default_shares
+        self.default_dynamic_shares = default_shares
+
+        self.refresh_tree()
+
+
+    def dynamic_shares_enabled(self):
+        return self.default_dynamic_shares is not None
 
 
 if __name__ == "__main__":
