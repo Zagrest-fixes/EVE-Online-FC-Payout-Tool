@@ -1,3 +1,4 @@
+import sys
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 import asyncio
@@ -7,6 +8,8 @@ import pyperclip
 from playwright.async_api import async_playwright
 # needed for exe
 import os
+import requests
+import json
 
 # Force Playwright to use local browser folder (for .exe compatibility)
 os.environ["PLAYWRIGHT_BROWSERS_PATH"] = os.path.join(os.getcwd(), "playwright-browsers")
@@ -46,13 +49,14 @@ class FCPayoutApp:
         button_frame.pack(pady=4)
         tk.Button(button_frame, text="Import zKill Links", command=self.start_import).pack(side=tk.LEFT, padx=4)
         tk.Button(button_frame, text="Import From BR", command=self.import_br_characters).pack(side=tk.LEFT, padx=4)
+        tk.Button(button_frame, text="Import From Names", command=self.import_by_name).pack(side=tk.LEFT, padx=4)
         tk.Button(button_frame, text="Recalculate", command=self.recalculate_shares).pack(side=tk.LEFT, padx=4)
         tk.Button(button_frame, text="Remove Selected", command=self.remove_selected).pack(side=tk.LEFT, padx=4)
         tk.Button(button_frame, text="Clear All", command=self.clear_all).pack(side=tk.LEFT, padx=4)
         tk.Button(button_frame, text="Copy Mail", command=self.copy_mail).pack(side=tk.LEFT, padx=4)
 
         tk.Label(root, text="Participants:").pack(anchor="w", padx=8, pady=(10, 0))
-        self.tree = ttk.Treeview(root, columns=("Include", "Scout", "Name", "Share"), show="headings")
+        self.tree = ttk.Treeview(root, columns=("Include", "Scout", "Name", "Found ID", "Share"), show="headings")
         self.tree.tag_configure("excluded", background="#ffd6d6")
         self.tree.tag_configure("included", font=("Segoe UI", 10))
         self.tree.tag_configure("boldshare", font=("Segoe UI", 10, "bold"))
@@ -188,6 +192,7 @@ class FCPayoutApp:
                 "Yes" if p.included else "No",
                 "Yes" if p.scout else "No",
                 p.name,
+                "Yes" if p.character_id is not None else "No",
                 f"{p.share:,.2f}"
             ), tags=(tag,))
         scout_isk = scouts[0].share if scouts else 0
@@ -235,7 +240,7 @@ Fly safe,
 
 
     def import_br_characters(self):
-        raw = simpledialog.askstring("BR Import", "Paste pilot data in format:\ncharID-########\nName")
+        raw = simpledialog.askstring("BR Import", "Paste pilot data from a BR composition")
         matches = re.findall(r"charID[-: ]?(?P<char_id>\d+)\n(?P<name>.*)\n", raw)
         for match in matches:
             id = match[0]
@@ -244,6 +249,33 @@ Fly safe,
         
         self.refresh_tree()
 
+    def import_by_name(self):
+        raw = simpledialog.askstring("Import by Name", "Paste pilot names with one on each line")
+        names = []
+
+        for line in raw.splitlines():
+            line = line.strip()
+            names.append(line)
+
+        headers = {"Content-Type": "application/json"}
+        try:
+            response = requests.post("https://esi.evetech.net/latest/universe/ids/", headers=headers, data=json.dumps(names))
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            print(f"Error querying ESI: {e}", file=sys.stderr)
+
+        if 'characters' in response.json():
+            characters = {character['name']: character['id'] for character in response.json()['characters']}
+        else:
+            characters = dict()
+            
+        for name in names:
+            id = None
+            if name in characters:
+                id = characters[name]
+            self.participants.append(Participant(name, character_id=id))
+
+        self.refresh_tree()
 
 if __name__ == "__main__":
     root = tk.Tk()
