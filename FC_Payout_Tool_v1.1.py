@@ -128,7 +128,8 @@ class FCPayoutApp:
 
     def remove_selected(self):
         selected = self.tree.selection()
-        for sel in selected:
+        # Reversed because for multiple selections idx changes as you remove
+        for sel in reversed(selected):
             idx = int(sel)
             del self.participants[idx]
         self.refresh_tree()
@@ -268,7 +269,7 @@ Fly safe,
             characters = {character['name']: character['id'] for character in response.json()['characters']}
         else:
             characters = dict()
-            
+
         for name in names:
             id = None
             if name in characters:
