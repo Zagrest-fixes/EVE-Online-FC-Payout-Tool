@@ -15,6 +15,27 @@ import json
 os.environ["PLAYWRIGHT_BROWSERS_PATH"] = os.path.join(os.getcwd(), "playwright-browsers")
 # needed for exe
 
+# List of NPCs that can show up on killmails (May not include everyone)
+# Got this list from https://zkillboard.com/corporation/1000274/top/
+IGNORED_CHAR_NAMES = [   	
+    "Hyleus Tyrannos",
+    "Arithmos Tyrannos",
+    "Agreus Tyrannos",
+    "Scylla Tyrannos",
+    "Karybdis Tyrannos",
+    "Artemis Tyrannos",
+    "Orpheus Tyrannos",
+    "Apollo Tyrannos",
+    "Phylarch Tyrannos",
+    "Metis Tyrannos",
+    "Tyrannos Strategos",
+    "Tisiphone Tyrannos",
+    "Tyrannos Navarkos",
+    "Orion Tyrannos",
+    "Tyrannos Polemos",
+    "Hikanta Tyrannos"
+]
+
 class Participant:
     def __init__(self, name, included=True, scout=False, character_id=None):
         self.name = name
@@ -242,10 +263,12 @@ Fly safe,
 
     def import_br_characters(self):
         raw = simpledialog.askstring("BR Import", "Paste pilot data from a BR composition")
-        matches = re.findall(r"charID[-: ]?(?P<char_id>\d+)\n(?P<name>.*)\n", raw)
+        matches = re.findall(r"charID[-: ]?(?P<char_id>\d+)\n(?P<name>.*)", raw)
         for match in matches:
             id = match[0]
             name = match[1]
+            if name in IGNORED_CHAR_NAMES:
+                continue
             self.participants.append(Participant(name, character_id=id))
         
         self.refresh_tree()
@@ -256,6 +279,8 @@ Fly safe,
 
         for line in raw.splitlines():
             line = line.strip()
+            if line in IGNORED_CHAR_NAMES:
+                continue
             names.append(line)
 
         headers = {"Content-Type": "application/json"}
