@@ -2,10 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 import re
 import pyperclip
-import requests
-import json
-from playwright.sync_api import sync_playwright
-import time
+from requests_html import HTMLSession
 
 # List of NPCs that can show up on killmails (May not include everyone)
 # Got this list from https://zkillboard.com/corporation/1000274/top/
@@ -199,8 +196,8 @@ class FCPayoutApp:
             self.add_and_lookup_names(names)
 
     def import_from_br_url(self):
-        """Fetch battle report data from br.evetools.org using Playwright."""
-        url = simpledialog.askstring("Import from BR URL", "Enter the battle report URL (e.g., https://br.evetools.org/br/...)")
+        """Fetch battle report data from br.evetools.org using requests-html."""
+        url = simpledialog.askstring("Import from BR URL", "Enter the battle report URL:")
         if not url:
             return
 
@@ -208,208 +205,233 @@ class FCPayoutApp:
             self.root.config(cursor="watch")
             self.root.update()
 
-            with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
-                page = browser.new_page()
-                page.goto(url)
-                page.wait_for_selector('[role="tab"]', timeout=10000)
-                time.sleep(2)
-                page.get_by_role('tab', name='Composition').click()
-                time.sleep(1)
+            session = HTMLSession()
+            r = session.get(url, timeout=30)
+            r.html.render(sleep=3, timeout=30)  # Execute JavaScript and wait for content to load
+            html = r.html.html
 
-                for button in page.get_by_text('Chars').all():
-                    button.click()
-                    time.sleep(0.5)
-
-                time.sleep(1)
-                html_content = page.content()
-                browser.close()
-
-                # Parse HTML using HTMLParser
-                from html.parser import HTMLParser
-
-                class BRParser(HTMLParser):
-                    def __init__(self):
-                        super().__init__()
-                        self.teams = []
-                        self.current_team = None
-                        self.current_corp = None
-
-                    def handle_starttag(self, tag, attrs):
-                        attrs_dict = dict(attrs)
-
-                        if tag == 'img' and 'alt' in attrs_dict:
-                            alt = attrs_dict['alt']
-                            if alt.startswith('allyID-'):
-                                self.current_team = {
-                                    'name': f"Team {chr(65 + len(self.teams))}",
-                                    'alliance': None,
-                                    'corps': []
-                                }
-                                self.teams.append(self.current_team)
-                            elif alt.startswith('corpID-') and self.current_team is not None:
-                                self.current_corp = {
-                                    'id': alt.replace('corpID-', ''),
-                                    'name': 'Unknown',
-                                    'charCount': '0',
-                                    'characters': []
-                                }
-                                self.current_team['corps'].append(self.current_corp)
-
-                        if tag == 'a' and 'href' in attrs_dict:
-                            href = attrs_dict['href']
-                            if '/character/' in href and self.current_corp is not None:
-                                char_id = href.rstrip('/').split('/')[-1]
-                                if char_id.isdigit():
-                                    self.current_corp['characters'].append({'id': char_id, 'name': None})
-                            elif '/corporation/' in href and self.current_corp is not None:
-                                self.current_corp['_awaiting_corp_name'] = True
-                            elif '/alliance/' in href and self.current_team is not None and self.current_team['alliance'] is None:
-                                self.current_team['_awaiting_ally_name'] = True
-
-                    def handle_data(self, data):
-                        data = data.strip()
-                        if not data:
-                            return
-
-                        if self.current_corp and self.current_corp['characters']:
-                            last_char = self.current_corp['characters'][-1]
-                            if last_char['name'] is None:
-                                last_char['name'] = data
-
-                        if self.current_corp and self.current_corp.get('_awaiting_corp_name'):
-                            self.current_corp['name'] = data
-                            match = re.match(r'\((\d+)\)', data)
-                            if match:
-                                self.current_corp['charCount'] = match.group(1)
-                            del self.current_corp['_awaiting_corp_name']
-
-                        if self.current_team and self.current_team.get('_awaiting_ally_name'):
-                            self.current_team['alliance'] = data
-                            del self.current_team['_awaiting_ally_name']
-
-                parser = BRParser()
-                parser.feed(html_content)
-                team_data = parser.teams
-
-                if not team_data:
-                    self.root.config(cursor="")
-                    messagebox.showerror("Error", "No teams found on the battle report page.")
-                    return
-
-                selected_team = self.show_team_selection_dialog(team_data)
-                if selected_team is None:
-                    self.root.config(cursor="")
-                    return
-
-                count = 0
-                for corp in team_data[selected_team]['corps']:
-                    for char in corp['characters']:
-                        if char['name'] not in IGNORED_CHAR_NAMES:
-                            self.add_participant(Participant(char['name'], character_id=char['id']))
-                            count += 1
-
-                self.refresh_tree()
+            if 'Team A' not in html and 'Team B' not in html:
                 self.root.config(cursor="")
-                messagebox.showinfo("Success", f"Imported {count} characters from {team_data[selected_team]['name']}!")
+                messagebox.showerror("Error", "Page loaded but no team data found. The page may still be loading.")
+                session.close()
+                return
+
+            # Parse teams, alliances, corporations, and characters
+            team_headers = list(re.finditer(r'<h4[^>]*>Team ([A-Z])[^<]*</h4>', html))
+            alliance_to_team = {}
+            corp_to_team = {}
+            for idx, match in enumerate(team_headers):
+                team_letter = match.group(1)
+                start = match.end()
+                end = team_headers[idx + 1].start() if idx + 1 < len(team_headers) else len(html)
+                header_chunk = html[start:end]
+
+                for ally_match in re.finditer(r'allyID-(\d+)', header_chunk):
+                    ally_id = ally_match.group(1)
+                    if ally_id not in alliance_to_team:
+                        alliance_to_team[ally_id] = team_letter
+
+                for corp_match in re.finditer(r'corpID-(\d+)', header_chunk):
+                    corp_id = corp_match.group(1)
+                    if corp_id not in corp_to_team:
+                        corp_to_team[corp_id] = team_letter
+
+            # Find all character links and associate with nearby alliance
+            team_characters = {}
+            for match in re.finditer(r'href="[^"]*character/(\d+)/"[^>]*>([^<]+)<', html):
+                char_id = match.group(1)
+                char_name = match.group(2).strip()
+
+                if char_name in IGNORED_CHAR_NAMES:
+                    continue
+
+                search_chunk = html[match.start():match.start()+2000]
+                ally_match = re.search(r'allyID-(\d+)', search_chunk)
+                corp_match = re.search(r'corpID-(\d+)', search_chunk)
+
+                ally_id = ally_match.group(1) if ally_match else None
+                corp_id = corp_match.group(1) if corp_match else None
+
+                team_letter = None
+                if ally_id:
+                    team_letter = alliance_to_team.get(ally_id)
+                if not team_letter and corp_id:
+                    team_letter = corp_to_team.get(corp_id)
+
+                if not team_letter:
+                    continue
+
+                if team_letter not in team_characters:
+                    team_characters[team_letter] = {'chars': [], 'alliances': set(), 'corporations': set()}
+
+                if not any(c['id'] == char_id for c in team_characters[team_letter]['chars']):
+                    team_characters[team_letter]['chars'].append({'id': char_id, 'name': char_name})
+                    if ally_id:
+                        team_characters[team_letter]['alliances'].add(ally_id)
+                    if corp_id:
+                        team_characters[team_letter]['corporations'].add(corp_id)
+
+            # Build final team data with alliance names
+            team_data = []
+            for team_letter in sorted(team_characters.keys()):
+                # Get alliance names
+                alliance_names = []
+                for ally_id in team_characters[team_letter]['alliances']:
+                    ally_name_match = re.search(r'alliance/{}/"[^>]*>([^<]+)<'.format(ally_id), html)
+                    if ally_name_match:
+                        alliance_names.append(ally_name_match.group(1))
+
+                corp_names = []
+                for corp_id in team_characters[team_letter]['corporations']:
+                    corp_name_match = re.search(r'corporation/{}/"[^>]*>([^<]+)<'.format(corp_id), html)
+                    if corp_name_match:
+                        corp_names.append(corp_name_match.group(1))
+
+                affil_names = sorted(set(alliance_names + corp_names))
+
+                team_data.append({
+                    'name': f"Team {team_letter}",
+                    'alliances': ', '.join(affil_names) if affil_names else 'Unknown',
+                    'characters': team_characters[team_letter]['chars']
+                })
+
+            session.close()
+
+            if not team_data:
+                self.root.config(cursor="")
+                messagebox.showerror("Error", "No teams found.")
+                return
+
+            selected_team = self.show_team_selection_dialog(team_data)
+            if selected_team is None:
+                self.root.config(cursor="")
+                return
+
+            count = 0
+            for char in team_data[selected_team]['characters']:
+                self.add_participant(Participant(char['name'], character_id=char['id']))
+                count += 1
+
+            self.refresh_tree()
+            self.root.config(cursor="")
+            messagebox.showinfo("Success", f"Imported {count} characters!")
 
         except Exception as e:
             self.root.config(cursor="")
-            messagebox.showerror("Error", f"Failed to fetch battle report data: {str(e)}\n\nMake sure Playwright is installed correctly. Run: playwright install chromium")
+            messagebox.showerror("Error", f"Failed to fetch BR: {str(e)}")
 
     def show_team_selection_dialog(self, teams):
         """Show a dialog to select which team to import."""
         dialog = tk.Toplevel(self.root)
         dialog.title("Select Team for Payout")
-        dialog.geometry("800x500")
+        dialog.transient(self.root)
 
-        selected_team = [None]
+        base_width = 600
+        base_height = 300
+        extra_height = max(0, len(teams) - 2) * 140
+        dialog.geometry(f"{base_width}x{base_height + extra_height}")
+        dialog.minsize(base_width, base_height)
+
+        selected_team = [-1]
+        dialog.result = None
 
         tk.Label(dialog, text="Which team is payout for?", font=("Segoe UI", 12, "bold")).pack(pady=10)
 
-        # Create a frame for the table
-        table_frame = tk.Frame(dialog)
-        table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        info_frame = tk.Frame(dialog)
+        info_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
 
-        # Create scrollbars
-        v_scrollbar = tk.Scrollbar(table_frame)
-        v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        team_frames = []
+        normal_bg = "#f3f3f3"
+        highlight_bg = "#cde4ff"
 
-        h_scrollbar = tk.Scrollbar(table_frame, orient=tk.HORIZONTAL)
-        h_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
+        def set_frame_bg(frame, bg):
+            frame.config(bg=bg)
+            for child in frame.winfo_children():
+                try:
+                    child.config(bg=bg)
+                except tk.TclError:
+                    pass
 
-        # Create canvas for scrolling
-        canvas = tk.Canvas(table_frame, yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
-        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        def on_select(index):
+            selected_team[0] = index
+            for i, frame in enumerate(team_frames):
+                set_frame_bg(frame, highlight_bg if i == index else normal_bg)
+            accept_button.config(state=tk.NORMAL)
 
-        v_scrollbar.config(command=canvas.yview)
-        h_scrollbar.config(command=canvas.xview)
-
-        # Create frame inside canvas
-        content_frame = tk.Frame(canvas)
-        canvas.create_window((0, 0), window=content_frame, anchor='nw')
-
-        # Get all unique corps across all teams
-        all_corps = set()
-        for team in teams:
-            for corp in team['corps']:
-                all_corps.add(corp['name'])
-        all_corps = sorted(all_corps)
-
-        # Create header row
-        tk.Label(content_frame, text="Corporation", font=("Segoe UI", 10, "bold"),
-                borderwidth=1, relief="solid", width=30).grid(row=0, column=0, sticky='nsew')
+        def bind_clicks(widget, index):
+            widget.bind("<Button-1>", lambda _evt, i=index: on_select(i))
+            for child in widget.winfo_children():
+                bind_clicks(child, index)
 
         for idx, team in enumerate(teams):
-            team_label = f"{team['name']}\n{team['alliance'] or 'Unknown'}"
-            tk.Label(content_frame, text=team_label, font=("Segoe UI", 10, "bold"),
-                    borderwidth=1, relief="solid", width=20).grid(row=0, column=idx+1, sticky='nsew')
+            team_frame = tk.Frame(info_frame, relief=tk.RIDGE, borderwidth=2, bg=normal_bg, cursor="hand2")
+            team_frame.pack(fill=tk.X, pady=8)
+            team_frames.append(team_frame)
 
-        # Create rows for each corp
-        for row_idx, corp_name in enumerate(all_corps, start=1):
-            tk.Label(content_frame, text=corp_name, borderwidth=1, relief="solid",
-                    anchor='w', padx=5).grid(row=row_idx, column=0, sticky='nsew')
+            tk.Label(team_frame, text=team['name'], font=("Segoe UI", 11, "bold"), bg=normal_bg).pack(pady=5)
+            tk.Label(
+                team_frame,
+                text=f"Alliances: {team['alliances']}",
+                font=("Segoe UI", 9),
+                bg=normal_bg,
+                wraplength=base_width - 80,
+                justify=tk.CENTER
+            ).pack(pady=2)
 
-            for col_idx, team in enumerate(teams):
-                # Find if this corp exists in this team
-                corp_in_team = next((c for c in team['corps'] if c['name'] == corp_name), None)
-                count_text = corp_in_team['charCount'] if corp_in_team else ""
+            pilot_count = len(team['characters'])
+            tk.Label(
+                team_frame,
+                text=f"Pilots: {pilot_count}",
+                font=("Segoe UI", 9),
+                bg=normal_bg
+            ).pack(pady=2)
 
-                tk.Label(content_frame, text=count_text, borderwidth=1, relief="solid").grid(
-                    row=row_idx, column=col_idx+1, sticky='nsew')
+            bind_clicks(team_frame, idx)
 
-        # Update scroll region
-        content_frame.update_idletasks()
-        canvas.config(scrollregion=canvas.bbox('all'))
-
-        # Create team selection buttons
         button_frame = tk.Frame(dialog)
         button_frame.pack(pady=10)
 
-        def select_team(team_idx):
-            selected_team[0] = team_idx
+        def accept_selection():
+            if selected_team[0] == -1:
+                messagebox.showwarning("Select Team", "Please choose a team before continuing.")
+                return
+            dialog.result = selected_team[0]
             dialog.destroy()
 
-        for idx, team in enumerate(teams):
-            btn_text = f"Import {team['name']} ({team['alliance'] or 'Unknown'})"
-            tk.Button(button_frame, text=btn_text, command=lambda i=idx: select_team(i),
-                     width=30, bg="#66ff66").pack(side=tk.LEFT, padx=5)
+        def cancel_selection():
+            dialog.result = None
+            dialog.destroy()
 
-        tk.Button(button_frame, text="Cancel", command=dialog.destroy, width=15).pack(side=tk.LEFT, padx=5)
+        accept_button = tk.Button(button_frame, text="Accept", width=15, state=tk.DISABLED, command=accept_selection, bg="#66ff66")
+        accept_button.pack(side=tk.LEFT, padx=10)
+
+        tk.Button(button_frame, text="Cancel", width=15, command=cancel_selection).pack(side=tk.LEFT, padx=10)
+
+        dialog.protocol("WM_DELETE_WINDOW", cancel_selection)
+        dialog.grab_set()
+
+        if len(teams) == 1:
+            on_select(0)
 
         dialog.wait_window()
-        return selected_team[0]
+        return dialog.result
 
     def add_and_lookup_names(self, names):
-        headers = {"Content-Type": "application/json"}
+        data = {}
         try:
-            response = requests.post("https://esi.evetech.net/latest/universe/ids/", headers=headers, data=json.dumps(names))
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
+            with HTMLSession() as session:
+                response = session.post(
+                    "https://esi.evetech.net/latest/universe/ids/",
+                    json=names,
+                    timeout=30,
+                )
+                response.raise_for_status()
+                data = response.json() or {}
+        except Exception as e:
             print(f"Error querying ESI: {e}")
 
-        if 'characters' in response.json():
-            characters = {character['name']: character['id'] for character in response.json()['characters']}
+        if 'characters' in data:
+            characters = {character['name']: character['id'] for character in data['characters']}
         else:
             characters = dict()
 
