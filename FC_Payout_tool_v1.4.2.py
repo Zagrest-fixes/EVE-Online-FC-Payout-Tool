@@ -37,7 +37,7 @@ class Participant:
 class FCPayoutApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("FC Payout Tool (v2.1)")
+        self.root.title("FC Payout Tool (v1.4.2)")
 
         self.default_dynamic_shares = None
 
@@ -196,8 +196,37 @@ class FCPayoutApp:
             self.add_and_lookup_names(names)
 
     def import_from_br_url(self):
-        """Fetch battle report data from br.evetools.org using requests-html."""
-        url = simpledialog.askstring("Import from BR URL", "Enter the battle report URL:")
+        """Fetch battle report data from br.evetools.org"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Import from BR URL")
+        dialog.geometry("450x150")
+        dialog.transient(self.root)
+
+        result = [None]
+
+        tk.Label(dialog, text="Enter the battle report URL:", font=("Segoe UI", 10)).pack(pady=10)
+
+        entry = tk.Entry(dialog, width=70, font=("Segoe UI", 10))
+        entry.pack(padx=20, pady=10, fill=tk.X)
+        entry.focus_set()
+
+        def on_ok():
+            result[0] = entry.get().strip()
+            dialog.destroy()
+
+        def on_cancel():
+            dialog.destroy()
+
+        button_frame = tk.Frame(dialog)
+        button_frame.pack(pady=10)
+        tk.Button(button_frame, text="OK", command=on_ok, width=10).pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="Cancel", command=on_cancel, width=10).pack(side=tk.LEFT, padx=5)
+
+        entry.bind("<Return>", lambda e: on_ok())
+
+        dialog.wait_window()
+
+        url = result[0]
         if not url:
             return
 
@@ -545,21 +574,12 @@ class FCPayoutApp:
         """Show a dialog with a multiline text box and return the entered text."""
         dialog = tk.Toplevel(self.root)
         dialog.title(title)
-        dialog.geometry("600x400")
+        dialog.geometry("600x450")
+        dialog.minsize(600, 450)
 
         result = [None]
 
         tk.Label(dialog, text=prompt, font=("Segoe UI", 10)).pack(pady=10)
-
-        text_frame = tk.Frame(dialog)
-        text_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
-
-        scrollbar = tk.Scrollbar(text_frame)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-        text_widget = tk.Text(text_frame, wrap=tk.WORD, yscrollcommand=scrollbar.set)
-        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.config(command=text_widget.yview)
 
         def on_ok():
             result[0] = text_widget.get("1.0", tk.END).strip()
@@ -568,10 +588,22 @@ class FCPayoutApp:
         def on_cancel():
             dialog.destroy()
 
+        # Pack buttons first at the bottom so they reserve their space
         button_frame = tk.Frame(dialog)
-        button_frame.pack(pady=10)
+        button_frame.pack(side=tk.BOTTOM, pady=15)
         tk.Button(button_frame, text="OK", command=on_ok, width=10).pack(side=tk.LEFT, padx=5)
         tk.Button(button_frame, text="Cancel", command=on_cancel, width=10).pack(side=tk.LEFT, padx=5)
+
+        # Now pack the text frame to fill remaining space
+        text_frame = tk.Frame(dialog)
+        text_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(5, 10))
+
+        scrollbar = tk.Scrollbar(text_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        text_widget = tk.Text(text_frame, wrap=tk.WORD, yscrollcommand=scrollbar.set)
+        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=text_widget.yview)
 
         text_widget.focus_set()
         dialog.wait_window()
