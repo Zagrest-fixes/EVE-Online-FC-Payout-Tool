@@ -25,15 +25,8 @@ pip install -r requirements.txt
 
 The packages installed will be:
 - `pyperclip` – copying in-game mail text to clipboard
-- `requests` - gets character ids from the esi
-- `playwright` - virtual browser to pull down br.evetools.org
-
-
-Install Playwright browser
-
-```bash
-playwright install chromium
-```
+- `requests_html` - handles character id lookups and battle report imports
+- `lxml_html_clean` - dependency of requests_html
 
 ---
 
@@ -96,4 +89,3 @@ Make sure `playwright-browsers/` is copied next to your `.exe`.
 - Clone this repo using `git clone`
 - Generate and use a Python Virtual Environment `python -m venv .venv` and `source .venv/bin/activate`
 - Always update requirements.txt from inside the venv `pipreqs . --ignore .venv,tests --encoding utf-8 --force`
-
