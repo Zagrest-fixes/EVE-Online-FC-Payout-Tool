@@ -1,0 +1,91 @@
+name: Build Executables
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v1.4.2, v2.0, etc.
+  workflow_dispatch:  # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        include:
+          - os: windows-latest
+            artifact_name: FC-Payout-Tool-Windows.exe
+            build_name: FC_Payout_Tool_v1.4.2.exe
+          - os: ubuntu-latest
+            artifact_name: FC-Payout-Tool-Linux
+            build_name: FC_Payout_Tool_v1.4.2
+          - os: macos-latest
+            artifact_name: FC-Payout-Tool-macOS
+            build_name: FC_Payout_Tool_v1.4.2
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Build with PyInstaller (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        pyinstaller --onefile --noconsole FC_Payout_Tool_v1.4.2.py
+
+    - name: Build with PyInstaller (Linux/macOS)
+      if: matrix.os != 'windows-latest'
+      run: |
+        pyinstaller --onefile FC_Payout_Tool_v1.4.2.py
+
+    - name: Rename executable (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        move dist\${{ matrix.build_name }} dist\${{ matrix.artifact_name }}
+
+    - name: Rename executable (Linux/macOS)
+      if: matrix.os != 'windows-latest'
+      run: |
+        mv dist/${{ matrix.build_name }} dist/${{ matrix.artifact_name }}
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: dist/${{ matrix.artifact_name }}
+        if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          artifacts/FC-Payout-Tool-Windows.exe/FC-Payout-Tool-Windows.exe
+          artifacts/FC-Payout-Tool-Linux/FC-Payout-Tool-Linux
+          artifacts/FC-Payout-Tool-macOS/FC-Payout-Tool-macOS
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

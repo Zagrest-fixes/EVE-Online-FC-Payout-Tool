@@ -59,9 +59,25 @@ sudo apt install xclip
 
 ---
 
-### Optional: Build a Standalone Executable (.exe)
+### Optional: Download Pre-built Executables
 
-To convert the script to a portable `.exe` file:
+Pre-built executables for Windows, Linux, and macOS are automatically generated for each release. You can download them from the [Releases page](https://github.com/TsuroTsero/EVE-Online-FC-Payout-Tool/releases) without needing Python installed.
+
+**Available downloads:**
+- `FC-Payout-Tool-Windows.exe` - Windows executable (no console window)
+- `FC-Payout-Tool-Linux` - Linux executable
+- `FC-Payout-Tool-macOS` - macOS executable
+
+**Note for Linux/macOS:** You may need to make the file executable after download:
+```bash
+chmod +x FC-Payout-Tool-Linux  # or FC-Payout-Tool-macOS
+```
+
+---
+
+### Optional: Build Your Own Executable
+
+To manually build a standalone executable from source:
 
 1. Install PyInstaller:
 
@@ -69,18 +85,21 @@ To convert the script to a portable `.exe` file:
 pip install pyinstaller
 ```
 
-2. Build your `.exe`:
+2. Build the executable:
 
+**Windows (no console window):**
 ```bash
-pyinstaller --onefile --add-data "playwright-browsers;playwright-browsers" FC_Payout_Tool_v2.0.py
-```
-OR
-
-```bash
-pyinstaller --onefile --noconsole .\FC_Payout_Tool_v2.0.py
+pyinstaller --onefile --noconsole FC_Payout_Tool_v1.4.2.py
 ```
 
-Make sure `playwright-browsers/` is copied next to your `.exe`.
+**Linux/macOS:**
+```bash
+pyinstaller --onefile FC_Payout_Tool_v1.4.2.py
+```
+
+The built executable will be in the `dist/` folder.
+
+**Automated Builds:** This project uses GitHub Actions to automatically build executables for all platforms on every release tag. The workflow builds on native runners to ensure compatibility.
 
 ---
 
