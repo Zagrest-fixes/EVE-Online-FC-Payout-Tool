@@ -13,20 +13,44 @@ jobs:
         os: [windows-latest, ubuntu-latest, macos-latest]
         include:
           - os: windows-latest
-            artifact_name: FC-Payout-Tool-Windows.exe
-            build_name: FC_Payout_Tool_v1.4.2.exe
+            os_suffix: Windows
+            extension: .exe
           - os: ubuntu-latest
-            artifact_name: FC-Payout-Tool-Linux
-            build_name: FC_Payout_Tool_v1.4.2
+            os_suffix: Linux
+            extension: ''
           - os: macos-latest
-            artifact_name: FC-Payout-Tool-macOS
-            build_name: FC_Payout_Tool_v1.4.2
+            os_suffix: macOS
+            extension: ''
 
     runs-on: ${{ matrix.os }}
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Extract version from tag or use commit hash
+      id: version
+      shell: bash
+      run: |
+        if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          VERSION=${GITHUB_REF#refs/tags/}
+        else
+          VERSION=$(git rev-parse --short HEAD)
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+
+    - name: Find Python script
+      id: script
+      shell: bash
+      run: |
+        SCRIPT=$(ls FC_Payout_tool*.py | head -n 1)
+        if [ -z "$SCRIPT" ]; then
+          echo "Error: No FC_Payout_tool*.py file found"
+          exit 1
+        fi
+        echo "script=$SCRIPT" >> $GITHUB_OUTPUT
+        echo "Found script: $SCRIPT"
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -42,28 +66,31 @@ jobs:
     - name: Build with PyInstaller (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        pyinstaller --onefile --noconsole FC_Payout_Tool_v1.4.2.py
+        pyinstaller --onefile --noconsole ${{ steps.script.outputs.script }}
 
     - name: Build with PyInstaller (Linux/macOS)
       if: matrix.os != 'windows-latest'
       run: |
-        pyinstaller --onefile FC_Payout_Tool_v1.4.2.py
+        pyinstaller --onefile ${{ steps.script.outputs.script }}
 
     - name: Rename executable (Windows)
       if: matrix.os == 'windows-latest'
+      shell: bash
       run: |
-        move dist\${{ matrix.build_name }} dist\${{ matrix.artifact_name }}
+        BASENAME=$(basename "${{ steps.script.outputs.script }}" .py)
+        mv "dist/${BASENAME}.exe" "dist/FC-Payout-Tool-${{ steps.version.outputs.version }}-${{ matrix.os_suffix }}${{ matrix.extension }}"
 
     - name: Rename executable (Linux/macOS)
       if: matrix.os != 'windows-latest'
       run: |
-        mv dist/${{ matrix.build_name }} dist/${{ matrix.artifact_name }}
+        BASENAME=$(basename "${{ steps.script.outputs.script }}" .py)
+        mv "dist/${BASENAME}" "dist/FC-Payout-Tool-${{ steps.version.outputs.version }}-${{ matrix.os_suffix }}${{ matrix.extension }}"
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.artifact_name }}
-        path: dist/${{ matrix.artifact_name }}
+        name: FC-Payout-Tool-${{ steps.version.outputs.version }}-${{ matrix.os_suffix }}
+        path: dist/FC-Payout-Tool-${{ steps.version.outputs.version }}-${{ matrix.os_suffix }}${{ matrix.extension }}
         if-no-files-found: error
 
   release:
@@ -72,6 +99,12 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
 
     steps:
+    - name: Extract version from tag
+      id: version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
     - name: Download all artifacts
       uses: actions/download-artifact@v4
       with:
@@ -81,9 +114,9 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          artifacts/FC-Payout-Tool-Windows.exe/FC-Payout-Tool-Windows.exe
-          artifacts/FC-Payout-Tool-Linux/FC-Payout-Tool-Linux
-          artifacts/FC-Payout-Tool-macOS/FC-Payout-Tool-macOS
+          artifacts/FC-Payout-Tool-${{ steps.version.outputs.version }}-Windows/FC-Payout-Tool-${{ steps.version.outputs.version }}-Windows.exe
+          artifacts/FC-Payout-Tool-${{ steps.version.outputs.version }}-Linux/FC-Payout-Tool-${{ steps.version.outputs.version }}-Linux
+          artifacts/FC-Payout-Tool-${{ steps.version.outputs.version }}-macOS/FC-Payout-Tool-${{ steps.version.outputs.version }}-macOS
         draft: false
         prerelease: false
         generate_release_notes: true

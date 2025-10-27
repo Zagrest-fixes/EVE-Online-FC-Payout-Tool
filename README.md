@@ -63,14 +63,14 @@ sudo apt install xclip
 
 Pre-built executables for Windows, Linux, and macOS are automatically generated for each release. You can download them from the [Releases page](https://github.com/TsuroTsero/EVE-Online-FC-Payout-Tool/releases) without needing Python installed.
 
-**Available downloads:**
-- `FC-Payout-Tool-Windows.exe` - Windows executable (no console window)
-- `FC-Payout-Tool-Linux` - Linux executable
-- `FC-Payout-Tool-macOS` - macOS executable
+**Available downloads** (version number will match the release tag, e.g., v2.1):
+- `FC-Payout-Tool-v2.1-Windows.exe` - Windows executable (no console window)
+- `FC-Payout-Tool-v2.1-Linux` - Linux executable
+- `FC-Payout-Tool-v2.1-macOS` - macOS executable
 
 **Note for Linux/macOS:** You may need to make the file executable after download:
 ```bash
-chmod +x FC-Payout-Tool-Linux  # or FC-Payout-Tool-macOS
+chmod +x FC-Payout-Tool-v2.1-Linux  # or FC-Payout-Tool-v2.1-macOS
 ```
 
 ---
