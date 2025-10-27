@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 import re
+from dataclasses import dataclass
+from typing import Optional
 import pyperclip
 from requests_html import HTMLSession
 
@@ -25,19 +27,19 @@ IGNORED_CHAR_NAMES = [
     "Hikanta Tyrannos"
 ]
 
+@dataclass
 class Participant:
-    def __init__(self, name, included=True, scout=False, character_id=None):
-        self.name = name
-        self.included = included
-        self.scout = scout
-        self.share = 0.0
-        self.character_id = character_id
-        self.num_shares = 1
+    name: str
+    included: bool = True
+    scout: bool = False
+    character_id: Optional[str] = None
+    share: float = 0.0
+    num_shares: int = 1
 
 class FCPayoutApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("FC Payout Tool (v1.4.2)")
+        self.root.title("FC Payout Tool (v2.1)")
 
         self.default_dynamic_shares = None
 
@@ -106,35 +108,39 @@ class FCPayoutApp:
         self.refresh_tree()
 
     def remove_selected(self):
-        selected = self.participant_tree.selection()
-        for sel in selected:
-            p = next((p for p in self.participants if str(id(p)) == sel), None)
-            if p:
-                self.participants.remove(p)
+        selected_ids = set(self.participant_tree.selection())
+        if not selected_ids:
+            return
+        self.participants = [p for p in self.participants if str(id(p)) not in selected_ids]
         self.refresh_tree()
 
     def toggle_checkbox(self, event):
         item_id = self.participant_tree.identify_row(event.y)
-        col = self.participant_tree.identify_column(event.x)
         if not item_id:
             return
-        p = next((p for p in self.participants if str(id(p)) == item_id), None)
-        if not p:
+        participant = self._participant_from_iid(item_id)
+        if not participant:
             return
-        if col == '#1':
-            p.included = not p.included
-        elif col == '#2':
-            p.scout = not p.scout
-        elif col == '#5':
+
+        column = self.participant_tree.identify_column(event.x)
+        if column == '#1':
+            participant.included = not participant.included
+        elif column == '#2':
+            participant.scout = not participant.scout
+        elif column == '#5':
             raw = simpledialog.askstring("Participant Shares", "Enter the number of shares this participant should recieve.")
+            if raw is None:
+                return
             try:
-                shares = int(raw.strip())
+                participant.num_shares = int(raw.strip())
             except ValueError:
                 print('Input value is not an integer')
                 return
-            p.num_shares = shares
 
         self.recalculate_shares()
+
+    def _participant_from_iid(self, iid):
+        return next((p for p in self.participants if str(id(p)) == iid), None)
 
     def on_buyback_focus_out(self, event):
         raw = self.buyback_entry.get()
@@ -164,36 +170,25 @@ class FCPayoutApp:
 
         # Detect format and parse accordingly
         if "charID" in raw:
-            # BR format: contains charID markers with IDs and names
             matches = re.findall(r"charID[-: ]?(?P<char_id>\d+)\n(?P<name>.*)", raw)
-            for match in matches:
-                id = match[0]
-                name = match[1]
+            for char_id, name in matches:
                 if name in IGNORED_CHAR_NAMES:
                     continue
-                self.add_participant(Participant(name, character_id=id))
+                self.add_participant(Participant(name, character_id=char_id))
             self.refresh_tree()
-        elif "\t" in raw:
-            # FAT link format: contains tab characters
+            return
+
+        lines = [line.strip() for line in raw.splitlines() if line.strip()]
+        if "\t" in raw:
             names = []
-            for line in raw.splitlines():
-                line = line.strip()
-                if not line:
-                    continue
-                name_match = re.match(r"^([^\t]+)", line)
-                if name_match:
-                    name = name_match.group(1).strip()
-                    if name and name not in IGNORED_CHAR_NAMES:
-                        names.append(name)
-            self.add_and_lookup_names(names)
+            for line in lines:
+                name = line.split("\t", 1)[0].strip()
+                if name and name not in IGNORED_CHAR_NAMES:
+                    names.append(name)
         else:
-            # Raw names format: newline-separated names
-            names = []
-            for line in raw.splitlines():
-                line = line.strip()
-                if line and line not in IGNORED_CHAR_NAMES:
-                    names.append(line)
-            self.add_and_lookup_names(names)
+            names = [line for line in lines if line not in IGNORED_CHAR_NAMES]
+
+        self.add_and_lookup_names(names)
 
     def import_from_br_url(self):
         """Fetch battle report data from br.evetools.org"""
@@ -234,15 +229,13 @@ class FCPayoutApp:
             self.root.config(cursor="watch")
             self.root.update()
 
-            session = HTMLSession()
-            r = session.get(url, timeout=30)
-            r.html.render(sleep=3, timeout=30)  # Execute JavaScript and wait for content to load
-            html = r.html.html
+            with HTMLSession() as session:
+                response = session.get(url, timeout=30)
+                response.html.render(sleep=3, timeout=30)  # Execute JavaScript and wait for content to load
+                html = response.html.html
 
             if 'Team A' not in html and 'Team B' not in html:
-                self.root.config(cursor="")
                 messagebox.showerror("Error", "Page loaded but no team data found. The page may still be loading.")
-                session.close()
                 return
 
             # Parse teams, alliances, corporations, and characters
@@ -324,16 +317,12 @@ class FCPayoutApp:
                     'characters': team_characters[team_letter]['chars']
                 })
 
-            session.close()
-
             if not team_data:
-                self.root.config(cursor="")
                 messagebox.showerror("Error", "No teams found.")
                 return
 
             selected_team = self.show_team_selection_dialog(team_data)
             if selected_team is None:
-                self.root.config(cursor="")
                 return
 
             count = 0
@@ -342,12 +331,12 @@ class FCPayoutApp:
                 count += 1
 
             self.refresh_tree()
-            self.root.config(cursor="")
             messagebox.showinfo("Success", f"Imported {count} characters!")
 
         except Exception as e:
-            self.root.config(cursor="")
             messagebox.showerror("Error", f"Failed to fetch BR: {str(e)}")
+        finally:
+            self.root.config(cursor="")
 
     def show_team_selection_dialog(self, teams):
         """Show a dialog to select which team to import."""
@@ -446,7 +435,11 @@ class FCPayoutApp:
         return dialog.result
 
     def add_and_lookup_names(self, names):
-        data = {}
+        if not names:
+            self.refresh_tree()
+            return
+
+        characters = {}
         try:
             with HTMLSession() as session:
                 response = session.post(
@@ -455,20 +448,13 @@ class FCPayoutApp:
                     timeout=30,
                 )
                 response.raise_for_status()
-                data = response.json() or {}
+                payload = response.json() or {}
+                characters = {item['name']: item['id'] for item in payload.get('characters', [])}
         except Exception as e:
             print(f"Error querying ESI: {e}")
 
-        if 'characters' in data:
-            characters = {character['name']: character['id'] for character in data['characters']}
-        else:
-            characters = dict()
-
         for name in names:
-            id = None
-            if name in characters:
-                id = characters[name]
-            self.add_participant(Participant(name, character_id=id))
+            self.add_participant(Participant(name, character_id=characters.get(name)))
 
         self.refresh_tree()
 
@@ -479,7 +465,7 @@ class FCPayoutApp:
                     existing_participant.character_id = participant.character_id
                 return
             
-        if self.default_dynamic_shares is not None:
+        if self.dynamic_shares_enabled:
             participant.num_shares = self.default_dynamic_shares
         self.participants.append(participant)
 
@@ -490,20 +476,18 @@ class FCPayoutApp:
         raw = raw.strip()
         if raw.lower() == 'off':
             self.default_dynamic_shares = None
-            self.refresh_tree()
-            return
-        try:
-            default_shares = int(raw.strip())
-        except ValueError:
-            print('Input value is not an integer')
-            return
-        for participant in self.participants:
-            participant.num_shares = default_shares
-        self.default_dynamic_shares = default_shares
-
+        else:
+            try:
+                default_shares = int(raw)
+            except ValueError:
+                print('Input value is not an integer')
+                return
+            for participant in self.participants:
+                participant.num_shares = default_shares
+            self.default_dynamic_shares = default_shares
         self.refresh_tree()
 
-
+    @property
     def dynamic_shares_enabled(self):
         return self.default_dynamic_shares is not None
 
@@ -519,31 +503,24 @@ class FCPayoutApp:
             scout_pool = 0
             line_pool = self.buyback_isk
 
-        if self.dynamic_shares_enabled():
-            num_scout_shares = sum(p.num_shares for p in scouts)
-            num_line_shares = sum(p.num_shares for p in lines)
-
-            scout_share = scout_pool / num_scout_shares if num_scout_shares > 0 else 0
-            line_share = line_pool / num_line_shares if num_line_shares > 0 else 0
-
-            for p in self.participants:
-                if not p.included:
-                    p.share = 0.0
-                elif p.scout:
-                    p.share = scout_share * p.num_shares
-                else:
-                    p.share = line_share * p.num_shares
+        dynamic = self.dynamic_shares_enabled
+        if dynamic:
+            scout_total = sum(p.num_shares for p in scouts)
+            line_total = sum(p.num_shares for p in lines)
+            scout_share = scout_pool / scout_total if scout_total else 0
+            line_share = line_pool / line_total if line_total else 0
         else:
             scout_share = scout_pool / len(scouts) if scouts else 0
             line_share = line_pool / len(lines) if lines else 0
 
-            for p in self.participants:
-                if not p.included:
-                    p.share = 0.0
-                elif p.scout:
-                    p.share = scout_share
-                else:
-                    p.share = line_share
+        for participant in self.participants:
+            if not participant.included:
+                participant.share = 0.0
+                continue
+
+            unit = scout_share if participant.scout else line_share
+            multiplier = participant.num_shares if dynamic else 1
+            participant.share = unit * multiplier
 
         self.refresh_tree()
 
@@ -553,6 +530,7 @@ class FCPayoutApp:
         scouts = [p for p in included if p.scout]
         lines = [p for p in included if not p.scout]
 
+        dynamic_shares_active = self.dynamic_shares_enabled
         for p in sorted(self.participants, key=lambda x: x.name.lower()):
             tag = "excluded" if not p.included else "boldshare"
             self.participant_tree.insert("", "end", iid=str(id(p)), values=(
@@ -560,7 +538,7 @@ class FCPayoutApp:
                 "Yes" if p.scout else "No",
                 p.name,
                 "Yes" if p.character_id is not None else "No",
-                p.num_shares if self.dynamic_shares_enabled() else "NA",
+                p.num_shares if dynamic_shares_active else "NA",
                 f"{p.share:,.2f}"
             ), tags=(tag,))
 
@@ -611,23 +589,23 @@ class FCPayoutApp:
         return result[0]
 
     def copy_payout_mail(self):
-        included_summary = ", ".join([
-            f"<url=showinfo:1383//{p.character_id}>{p.name}</url>" if p.character_id else p.name
-            for p in self.participants if p.included
-        ])
+        def format_name(participant):
+            if participant.character_id:
+                return f"<url=showinfo:1383//{participant.character_id}>{participant.name}</url>"
+            return participant.name
+
+        included_summary = ", ".join(format_name(p) for p in self.participants if p.included)
 
         scouts = [p for p in self.participants if p.included and p.scout]
         lines = [p for p in self.participants if p.included and not p.scout]
 
-        scout_member_lines = "\n".join([
-            f"- <url=showinfo:1383//{p.character_id}>{p.name}</url> (50% = {p.share:,.2f} ISK)" if p.character_id else f"- {p.name} (50% = {p.share:,.2f} ISK)"
-            for p in scouts
-        ])
+        scout_member_lines = "\n".join(
+            f"- {format_name(p)} (50% = {p.share:,.2f} ISK)" for p in scouts
+        )
 
-        line_member_lines = "\n".join([
-            f"- <url=showinfo:1383//{p.character_id}>{p.name}</url>: {p.share:,.2f} ISK" if p.character_id else f"- {p.name}: {p.share:,.2f} ISK"
-            for p in lines
-        ])
+        line_member_lines = "\n".join(
+            f"- {format_name(p)}: {p.share:,.2f} ISK" for p in lines
+        )
 
         message = f"""
 SEND TO:
