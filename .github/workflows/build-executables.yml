@@ -40,18 +40,6 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Version: $VERSION"
 
-    - name: Find Python script
-      id: script
-      shell: bash
-      run: |
-        SCRIPT=$(ls FC_Payout_tool*.py | head -n 1)
-        if [ -z "$SCRIPT" ]; then
-          echo "Error: No FC_Payout_tool*.py file found"
-          exit 1
-        fi
-        echo "script=$SCRIPT" >> $GITHUB_OUTPUT
-        echo "Found script: $SCRIPT"
-
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
@@ -66,25 +54,23 @@ jobs:
     - name: Build with PyInstaller (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        pyinstaller --onefile --noconsole ${{ steps.script.outputs.script }}
+        pyinstaller --onefile --noconsole FC_Payout_tool.py
 
     - name: Build with PyInstaller (Linux/macOS)
       if: matrix.os != 'windows-latest'
       run: |
-        pyinstaller --onefile ${{ steps.script.outputs.script }}
+        pyinstaller --onefile FC_Payout_tool.py
 
     - name: Rename executable (Windows)
       if: matrix.os == 'windows-latest'
       shell: bash
       run: |
-        BASENAME=$(basename "${{ steps.script.outputs.script }}" .py)
-        mv "dist/${BASENAME}.exe" "dist/FC-Payout-Tool-${{ steps.version.outputs.version }}-${{ matrix.os_suffix }}${{ matrix.extension }}"
+        mv "dist/FC_Payout_tool.exe" "dist/FC-Payout-Tool-${{ steps.version.outputs.version }}-${{ matrix.os_suffix }}${{ matrix.extension }}"
 
     - name: Rename executable (Linux/macOS)
       if: matrix.os != 'windows-latest'
       run: |
-        BASENAME=$(basename "${{ steps.script.outputs.script }}" .py)
-        mv "dist/${BASENAME}" "dist/FC-Payout-Tool-${{ steps.version.outputs.version }}-${{ matrix.os_suffix }}${{ matrix.extension }}"
+        mv "dist/FC_Payout_tool" "dist/FC-Payout-Tool-${{ steps.version.outputs.version }}-${{ matrix.os_suffix }}${{ matrix.extension }}"
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4

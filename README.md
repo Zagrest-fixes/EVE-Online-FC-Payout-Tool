@@ -17,7 +17,7 @@ Tool to help fc do less and faster paperwork when doing payouts
 
 ## Step 2: Download tool and install dependencies
 
-Either clone this GitHub repo, or download `FC_Payout_tool_v1.4.2.py` and `requirements.txt` into a folder. Open a terminal or Powershell window to this folder and run the following command:
+Either clone this GitHub repo, or download `FC_Payout_tool.py` and `requirements.txt` into a folder. Open a terminal or Powershell window to this folder and run the following command:
 
 ```bash
 pip install -r requirements.txt
@@ -35,7 +35,7 @@ The packages installed will be:
 To launch the FC payout GUI:
 
 ```bash
-python FC_Payout_Tool_v1.4.2.py
+python FC_Payout_tool.py
 ```
 
 You will be able to:
@@ -63,14 +63,14 @@ sudo apt install xclip
 
 Pre-built executables for Windows, Linux, and macOS are automatically generated for each release. You can download them from the [Releases page](https://github.com/TsuroTsero/EVE-Online-FC-Payout-Tool/releases) without needing Python installed.
 
-**Available downloads** (version number will match the release tag, e.g., v2.1):
-- `FC-Payout-Tool-v2.1-Windows.exe` - Windows executable (no console window)
-- `FC-Payout-Tool-v2.1-Linux` - Linux executable
-- `FC-Payout-Tool-v2.1-macOS` - macOS executable
+**Available downloads**
+- `FC-Payout-Tool-vX.Y.Z-Windows.exe` - Windows executable (no console window)
+- `FC-Payout-Tool-vX.Y.Z-Linux` - Linux executable
+- `FC-Payout-Tool-vX.Y.Z-macOS` - macOS executable
 
 **Note for Linux/macOS:** You may need to make the file executable after download:
 ```bash
-chmod +x FC-Payout-Tool-v2.1-Linux  # or FC-Payout-Tool-v2.1-macOS
+chmod +x FC-Payout-Tool-vX.Y.Z-Linux  # or FC-Payout-Tool-vX.Y.Z-macOS
 ```
 
 ---
@@ -89,12 +89,12 @@ pip install pyinstaller
 
 **Windows (no console window):**
 ```bash
-pyinstaller --onefile --noconsole FC_Payout_Tool_v1.4.2.py
+pyinstaller --onefile --noconsole FC_Payout_tool.py
 ```
 
 **Linux/macOS:**
 ```bash
-pyinstaller --onefile FC_Payout_Tool_v1.4.2.py
+pyinstaller --onefile FC_Payout_tool.py
 ```
 
 The built executable will be in the `dist/` folder.
