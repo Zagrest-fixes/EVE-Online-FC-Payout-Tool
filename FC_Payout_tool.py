@@ -1,10 +1,180 @@
+import os
+import contextlib
+import io
+import sys
+from pathlib import Path
+
+DEFAULT_PLAYWRIGHT_CACHE = Path(os.path.expanduser('~')) / '.playwright-browsers'
+os.environ.setdefault('PLAYWRIGHT_BROWSERS_PATH', str(DEFAULT_PLAYWRIGHT_CACHE))
+
+
+def _run_playwright_install_cli() -> None:
+    from playwright.__main__ import main as playwright_cli_main
+
+    original_argv = sys.argv[:]
+    sys.argv = ['playwright', 'install', 'chromium']
+    try:
+        playwright_cli_main()
+    finally:
+        sys.argv = original_argv
+
+
+if '--playwright-install' in sys.argv:
+    _run_playwright_install_cli()
+    sys.exit(0)
+
+if getattr(sys, 'frozen', False):
+    bundle_dir = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+    bundle_browsers = Path(bundle_dir) / 'playwright-browsers'
+    if bundle_browsers.is_dir():
+        os.environ['PLAYWRIGHT_BROWSERS_PATH'] = str(bundle_browsers)
+
+try:
+    Path(os.environ['PLAYWRIGHT_BROWSERS_PATH']).mkdir(parents=True, exist_ok=True)
+except OSError:
+    pass
+
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 import re
 from dataclasses import dataclass
 from typing import Optional
 import pyperclip
-from requests_html import HTMLSession
+import requests
+from playwright.sync_api import sync_playwright
+
+
+def _chromium_relative_path() -> Path:
+    if sys.platform.startswith('win'):
+        return Path('chrome-win') / 'chrome.exe'
+    if sys.platform.startswith('darwin'):
+        return Path('chrome-mac') / 'Chromium.app' / 'Contents' / 'MacOS' / 'Chromium'
+    return Path('chrome-linux') / 'chrome'
+
+
+def _chromium_installed() -> bool:
+    browsers_path = Path(os.environ.get('PLAYWRIGHT_BROWSERS_PATH', DEFAULT_PLAYWRIGHT_CACHE))
+    if not browsers_path.is_dir():
+        return False
+    for entry in browsers_path.iterdir():
+        if entry.is_dir() and entry.name.startswith('chromium-'):
+            if (entry / _chromium_relative_path()).exists():
+                return True
+    return False
+
+
+def ensure_playwright_ready(root: tk.Tk) -> None:
+    if _chromium_installed():
+        print("Playwright browser already installed; continuing.")
+        return
+
+    print("Playwright browser not found; starting download...")
+    dialog = tk.Toplevel(root)
+    dialog.title("Preparing Playwright")
+    dialog.geometry("460x280")
+    dialog.transient(root)
+    dialog.grab_set()
+    dialog.resizable(False, False)
+    dialog.protocol("WM_DELETE_WINDOW", lambda: None)
+
+    header = tk.Label(dialog, text="Downloading Playwright Chromium...", font=("Segoe UI", 12, "bold"))
+    header.pack(pady=(12, 6))
+
+    log_box = tk.Text(dialog, width=60, height=10, state=tk.DISABLED)
+    log_box.pack(padx=12, pady=(0, 8), fill=tk.BOTH, expand=True)
+
+    status_var = tk.StringVar(value="Downloading browser...")
+    status_label = tk.Label(dialog, textvariable=status_var, font=("Segoe UI", 10, "italic"))
+    status_label.pack(pady=(0, 6))
+
+    continue_button = tk.Button(dialog, text="Continue", state=tk.DISABLED, command=dialog.destroy, width=12)
+    continue_button.pack(pady=(0, 12))
+
+    def append_line(line: str) -> None:
+        print(line.rstrip())
+        log_box.config(state=tk.NORMAL)
+        log_box.insert(tk.END, line)
+        log_box.see(tk.END)
+        log_box.config(state=tk.DISABLED)
+
+    try:
+        append_line("Running: playwright install chromium\n")
+        _install_playwright_browser(on_output=append_line)
+    except Exception as exc:
+        status_var.set(f"Installation failed: {exc}")
+        append_line(str(exc) + "\n")
+        continue_button.config(state=tk.NORMAL)
+    else:
+        if _chromium_installed():
+            status_var.set("Playwright browser installed successfully.")
+            append_line("Playwright Chromium ready.\n")
+            continue_button.config(state=tk.NORMAL)
+            dialog.after(500, dialog.destroy)
+        else:
+            status_var.set("Playwright installed, but Chromium not detected. Please try again.")
+            continue_button.config(state=tk.NORMAL)
+
+    root.wait_window(dialog)
+
+
+
+def _install_playwright_browser(on_output=None):
+    env = os.environ.copy()
+    browsers_path = env.get('PLAYWRIGHT_BROWSERS_PATH')
+    if browsers_path:
+        os.makedirs(browsers_path, exist_ok=True)
+        os.environ['PLAYWRIGHT_BROWSERS_PATH'] = browsers_path
+    emitter = _StreamEmitter(on_output)
+    with contextlib.redirect_stdout(emitter), contextlib.redirect_stderr(emitter):
+        try:
+            _run_playwright_install_cli()
+        except SystemExit as exit_exc:
+            if exit_exc.code not in (None, 0):
+                output = emitter.getvalue().strip()
+                raise RuntimeError(output or f"Playwright exited with code {exit_exc.code}")
+        except Exception as exc:
+            output = emitter.getvalue().strip()
+            details = f"{exc}\n{output}" if output else str(exc)
+            raise RuntimeError(details)
+        finally:
+            emitter.flush()
+
+
+class _StreamEmitter(io.StringIO):
+    def __init__(self, callback):
+        super().__init__()
+        self._callback = callback
+        self._buffer = ''
+
+    def write(self, s):
+        super().write(s)
+        if not self._callback:
+            return len(s)
+        self._buffer += s
+        while '\n' in self._buffer:
+            line, self._buffer = self._buffer.split('\n', 1)
+            self._callback(line + '\n')
+        return len(s)
+
+    def flush(self):
+        if self._callback and self._buffer:
+            self._callback(self._buffer)
+            self._buffer = ''
+        return super().flush()
+
+
+def _launch_chromium_with_retry(playwright):
+    try:
+        return playwright.chromium.launch(headless=True)
+    except Exception as exc:
+        message = str(exc).lower()
+        if 'playwright install' in message or 'browser executable' in message:
+            try:
+                _install_playwright_browser()
+            except Exception as install_error:  # pragma: no cover - best effort install
+                raise RuntimeError(f"Failed to install Playwright browser automatically: {install_error}") from exc
+            return playwright.chromium.launch(headless=True)
+        raise
 
 # List of NPCs that can show up on killmails (May not include everyone)
 # Got this list from https://zkillboard.com/corporation/1000274/top/
@@ -39,7 +209,7 @@ class Participant:
 class FCPayoutApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("FC Payout Tool (v2.1)")
+        self.root.title("FC Payout Tool")
 
         self.default_dynamic_shares = None
 
@@ -229,10 +399,15 @@ class FCPayoutApp:
             self.root.config(cursor="watch")
             self.root.update()
 
-            with HTMLSession() as session:
-                response = session.get(url, timeout=30)
-                response.html.render(sleep=3, timeout=30)  # Execute JavaScript and wait for content to load
-                html = response.html.html
+            with sync_playwright() as playwright:
+                browser = _launch_chromium_with_retry(playwright)
+                try:
+                    page = browser.new_page()
+                    page.goto(url, timeout=60000)
+                    page.wait_for_timeout(3000)
+                    html = page.content()
+                finally:
+                    browser.close()
 
             if 'Team A' not in html and 'Team B' not in html:
                 messagebox.showerror("Error", "Page loaded but no team data found. The page may still be loading.")
@@ -441,15 +616,14 @@ class FCPayoutApp:
 
         characters = {}
         try:
-            with HTMLSession() as session:
-                response = session.post(
-                    "https://esi.evetech.net/latest/universe/ids/",
-                    json=names,
-                    timeout=30,
-                )
-                response.raise_for_status()
-                payload = response.json() or {}
-                characters = {item['name']: item['id'] for item in payload.get('characters', [])}
+            response = requests.post(
+                "https://esi.evetech.net/latest/universe/ids/",
+                json=names,
+                timeout=30,
+            )
+            response.raise_for_status()
+            payload = response.json() or {}
+            characters = {item['name']: item['id'] for item in payload.get('characters', [])}
         except Exception as e:
             print(f"Error querying ESI: {e}")
 
@@ -628,5 +802,8 @@ Line Members:
 
 if __name__ == "__main__":
     root = tk.Tk()
+    root.withdraw()
+    ensure_playwright_ready(root)
+    root.deiconify()
     app = FCPayoutApp(root)
     root.mainloop()

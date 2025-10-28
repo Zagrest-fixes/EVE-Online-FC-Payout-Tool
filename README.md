@@ -3,7 +3,25 @@ Tool to help fc do less and faster paperwork when doing payouts
 
 ---
 
-## Setup and Install Guide
+## Executable Packages (recommended)
+
+### Download from Releases
+
+Pre-built executables for Windows, Linux, and macOS are automatically generated for each release. You can download them from the [Releases page](https://github.com/TsuroTsero/EVE-Online-FC-Payout-Tool/releases) without needing Python installed.
+
+**Available downloads**
+- `FC-Payout-Tool-vX.Y.Z-Windows.exe` - Windows executable (no console window)
+- `FC-Payout-Tool-vX.Y.Z-Linux` - Linux executable
+- `FC-Payout-Tool-vX.Y.Z-macOS` - macOS executable
+
+**Note for Linux/macOS:** You may need to make the file executable after download:
+```bash
+chmod +x FC-Payout-Tool-vX.Y.Z-Linux  # or FC-Payout-Tool-vX.Y.Z-macOS
+```
+
+---
+
+## Manual Build
 
 ### Step 1: Install Python
 
@@ -12,8 +30,6 @@ Tool to help fc do less and faster paperwork when doing payouts
 3. Run the installer
 
 **IMPORTANT:** During installation, check the box: Add Python to PATH
-
----
 
 ## Step 2: Download tool and install dependencies
 
@@ -25,12 +41,18 @@ pip install -r requirements.txt
 
 The packages installed will be:
 - `pyperclip` – copying in-game mail text to clipboard
-- `requests_html` - handles character id lookups and battle report imports
-- `lxml_html_clean` - dependency of requests_html
+- `requests` - handles character id lookups and battle report imports
+- `playwright` - pulls br.evetools.org data for parsing
 
----
+### Step 3: Install playwright
 
-### Step 3: Run the tool
+The tool comes bundled with an installer you can run:
+
+```bash
+python FC_Payout_tool.py --playwright-install
+```
+
+### Step 4: Run the tool
 
 To launch the FC payout GUI:
 
@@ -49,7 +71,9 @@ You will be able to:
 
 ---
 
-### Optional: Fix for Linux Clipboard
+## Troubleshooting and Developing
+
+### Fix for Linux Clipboard
 
 If `pyperclip` doesn’t work on Linux, install `xclip`:
 
@@ -57,25 +81,7 @@ If `pyperclip` doesn’t work on Linux, install `xclip`:
 sudo apt install xclip
 ```
 
----
-
-### Optional: Download Pre-built Executables
-
-Pre-built executables for Windows, Linux, and macOS are automatically generated for each release. You can download them from the [Releases page](https://github.com/TsuroTsero/EVE-Online-FC-Payout-Tool/releases) without needing Python installed.
-
-**Available downloads**
-- `FC-Payout-Tool-vX.Y.Z-Windows.exe` - Windows executable (no console window)
-- `FC-Payout-Tool-vX.Y.Z-Linux` - Linux executable
-- `FC-Payout-Tool-vX.Y.Z-macOS` - macOS executable
-
-**Note for Linux/macOS:** You may need to make the file executable after download:
-```bash
-chmod +x FC-Payout-Tool-vX.Y.Z-Linux  # or FC-Payout-Tool-vX.Y.Z-macOS
-```
-
----
-
-### Optional: Build Your Own Executable
+### Build Your Own Executable
 
 To manually build a standalone executable from source:
 
@@ -100,8 +106,6 @@ pyinstaller --onefile FC_Payout_tool.py
 The built executable will be in the `dist/` folder.
 
 **Automated Builds:** This project uses GitHub Actions to automatically build executables for all platforms on every release tag. The workflow builds on native runners to ensure compatibility.
-
----
 
 ### Contributing
 

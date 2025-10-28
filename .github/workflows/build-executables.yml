@@ -53,13 +53,16 @@ jobs:
 
     - name: Build with PyInstaller (Windows)
       if: matrix.os == 'windows-latest'
+      shell: bash
       run: |
-        pyinstaller --onefile --noconsole FC_Payout_tool.py
+        pyinstaller --onefile --noconsole \
+          FC_Payout_tool.py
 
     - name: Build with PyInstaller (Linux/macOS)
       if: matrix.os != 'windows-latest'
       run: |
-        pyinstaller --onefile FC_Payout_tool.py
+        pyinstaller --onefile \
+          FC_Payout_tool.py
 
     - name: Rename executable (Windows)
       if: matrix.os == 'windows-latest'
