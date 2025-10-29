@@ -1,60 +1,63 @@
 # EVE-Online-FC-Payout-Tool
 Tool to help fc do less and faster paperwork when doing payouts
 
+---
 
-# How to make .exe & run below
+## Executable Packages (recommended)
 
+### Download from Releases
 
+Pre-built executables for Windows, Linux, and macOS are automatically generated for each release. You can download them from the [Releases page](https://github.com/TsuroTsero/EVE-Online-FC-Payout-Tool/releases) without needing Python installed.
 
-# ✅ FC Payout Tool v2.0 - Installation & Setup Guide
+**Available downloads**
+- `FC-Payout-Tool-vX.Y.Z-Windows.exe` - Windows executable (no console window)
+- `FC-Payout-Tool-vX.Y.Z-Linux` - Linux executable
+- `FC-Payout-Tool-vX.Y.Z-macOS` - macOS executable
 
-This is the fully verified setup guide to run the FC Payout Tool v2.0.
+**Note for Linux/macOS:** You may need to make the file executable after download:
+```bash
+chmod +x FC-Payout-Tool-vX.Y.Z-Linux  # or FC-Payout-Tool-vX.Y.Z-macOS
+```
 
 ---
 
-## 🚀 Step 1: Install Python
+## Manual Build
+
+### Step 1: Install Python
 
 1. Go to: [https://www.python.org/downloads/](https://www.python.org/downloads/)
 2. Download **Python 3.9 or newer**
 3. Run the installer
 
-**IMPORTANT:** During installation, check the box:
-> ✅ "Add Python to PATH"
+**IMPORTANT:** During installation, check the box: Add Python to PATH
 
----
+## Step 2: Download tool and install dependencies
 
-## ✅ Step 2: Open PowerShell or Terminal
-
-Navigate to the folder where the script is saved:
+Either clone this GitHub repo, or download `FC_Payout_tool.py` and `requirements.txt` into a folder. Open a terminal or Powershell window to this folder and run the following command:
 
 ```bash
-cd C:\Users\YourName\Documents\fcpayout
+pip install -r requirements.txt
 ```
 
----
-
-## ✅ Step 3: Install Required Python Packages
-
-Run the following command:
-
-```bash
-pip install pyperclip requests
-```
-
-These packages are used for:
+The packages installed will be:
 - `pyperclip` – copying in-game mail text to clipboard
-- `requests` - gets character ids from the esi
+- `requests` - handles character id lookups and battle report imports
+- `playwright` - pulls br.evetools.org data for parsing
 
-> Note: `asyncio` is built into Python — no need to install it.
+### Step 3: Install playwright
 
----
+The tool comes bundled with an installer you can run:
 
-## ✅ Step 4: Run the Tool
+```bash
+python FC_Payout_tool.py --playwright-install
+```
+
+### Step 4: Run the tool
 
 To launch the FC payout GUI:
 
 ```bash
-python FC_Payout_Tool_v2.0.py
+python FC_Payout_tool.py
 ```
 
 You will be able to:
@@ -62,12 +65,15 @@ You will be able to:
 - Import pilots in bulk from br.evetools.org by going to report ---> composition ---> chars and copying pilots including their photo and name.
 - Import pilots in bulk by name with a list of names each on its own line.
 - Import pilots from a fat link by copy pasting the names (can and likely will include the system and ship they were in when they clicked the link. These will be ignored)
+- Import pilots automatically from a br.evetools.org URL
 - Mark scouts and exclude pilots from payout
 - Automatically generate an in-game mail and copy to clipboard
 
 ---
 
-## 🧠 Optional Fix for Linux Clipboard
+## Troubleshooting and Developing
+
+### Fix for Linux Clipboard
 
 If `pyperclip` doesn’t work on Linux, install `xclip`:
 
@@ -75,11 +81,9 @@ If `pyperclip` doesn’t work on Linux, install `xclip`:
 sudo apt install xclip
 ```
 
----
+### Build Your Own Executable
 
-## ⚙️ Optional: Build a Standalone Executable (.exe)
-
-To convert the script to a portable `.exe` file:
+To manually build a standalone executable from source:
 
 1. Install PyInstaller:
 
@@ -87,22 +91,24 @@ To convert the script to a portable `.exe` file:
 pip install pyinstaller
 ```
 
-2. Build your `.exe`:
+2. Build the executable:
 
+**Windows (no console window):**
 ```bash
-pyinstaller --onefile --add-data "playwright-browsers;playwright-browsers" FC_Payout_Tool_v2.0.py
-```
-OR
-
-```bash
-pyinstaller --onefile --noconsole .\FC_Payout_Tool_v2.0.py
+pyinstaller --onefile --noconsole FC_Payout_tool.py
 ```
 
-Make sure `playwright-browsers/` is copied next to your `.exe`.
+**Linux/macOS:**
+```bash
+pyinstaller --onefile FC_Payout_tool.py
+```
 
----
+The built executable will be in the `dist/` folder.
 
-## 🎉 You're Done!
+**Automated Builds:** This project uses GitHub Actions to automatically build executables for all platforms on every release tag. The workflow builds on native runners to ensure compatibility.
 
-Enjoy using the FC Payout Tool! Fly safe o7
+### Contributing
 
+- Clone this repo using `git clone`
+- Generate and use a Python Virtual Environment `python -m venv .venv` and `source .venv/bin/activate`
+- Always update requirements.txt from inside the venv `pipreqs . --ignore .venv,tests --encoding utf-8 --force`

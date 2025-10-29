@@ -1,0 +1,113 @@
+name: Build Executables
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v1.4.2, v2.0, etc.
+  workflow_dispatch:  # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        include:
+          - os: windows-latest
+            os_suffix: Windows
+            extension: .exe
+          - os: ubuntu-latest
+            os_suffix: Linux
+            extension: ''
+          - os: macos-latest
+            os_suffix: macOS
+            extension: ''
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Extract version from tag or use commit hash
+      id: version
+      shell: bash
+      run: |
+        if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          VERSION=${GITHUB_REF#refs/tags/}
+        else
+          VERSION=$(git rev-parse --short HEAD)
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Build with PyInstaller (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: bash
+      run: |
+        pyinstaller --onefile --noconsole \
+          FC_Payout_tool.py
+
+    - name: Build with PyInstaller (Linux/macOS)
+      if: matrix.os != 'windows-latest'
+      run: |
+        pyinstaller --onefile \
+          FC_Payout_tool.py
+
+    - name: Rename executable (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: bash
+      run: |
+        mv "dist/FC_Payout_tool.exe" "dist/FC-Payout-Tool-${{ steps.version.outputs.version }}-${{ matrix.os_suffix }}${{ matrix.extension }}"
+
+    - name: Rename executable (Linux/macOS)
+      if: matrix.os != 'windows-latest'
+      run: |
+        mv "dist/FC_Payout_tool" "dist/FC-Payout-Tool-${{ steps.version.outputs.version }}-${{ matrix.os_suffix }}${{ matrix.extension }}"
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: FC-Payout-Tool-${{ steps.version.outputs.version }}-${{ matrix.os_suffix }}
+        path: dist/FC-Payout-Tool-${{ steps.version.outputs.version }}-${{ matrix.os_suffix }}${{ matrix.extension }}
+        if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+    - name: Extract version from tag
+      id: version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          artifacts/FC-Payout-Tool-${{ steps.version.outputs.version }}-Windows/FC-Payout-Tool-${{ steps.version.outputs.version }}-Windows.exe
+          artifacts/FC-Payout-Tool-${{ steps.version.outputs.version }}-Linux/FC-Payout-Tool-${{ steps.version.outputs.version }}-Linux
+          artifacts/FC-Payout-Tool-${{ steps.version.outputs.version }}-macOS/FC-Payout-Tool-${{ steps.version.outputs.version }}-macOS
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
