@@ -312,7 +312,7 @@ class FCPayoutApp:
     def _participant_from_iid(self, iid):
         return next((p for p in self.participants if str(id(p)) == iid), None)
 
-    def on_buyback_focus_out(self, event):
+    def on_buyback_focus_out(self, event = None):
         raw = self.buyback_entry.get()
         cleaned = re.sub(r"[^\d.]", "", raw)
 
@@ -339,7 +339,7 @@ class FCPayoutApp:
             return
 
         # Detect format and parse accordingly
-        if "charID" in raw:
+        if "charID-" in raw:
             matches = re.findall(r"charID[-: ]?(?P<char_id>\d+)\n(?P<name>.*)", raw)
             for char_id, name in matches:
                 if name in IGNORED_CHAR_NAMES:
@@ -404,7 +404,7 @@ class FCPayoutApp:
                 try:
                     page = browser.new_page()
                     page.goto(url, timeout=60000)
-                    page.wait_for_timeout(3000)
+                    page.wait_for_timeout(4500)
                     html = page.content()
                 finally:
                     browser.close()
@@ -520,7 +520,7 @@ class FCPayoutApp:
         dialog.transient(self.root)
 
         base_width = 600
-        base_height = 300
+        base_height = 400
         extra_height = max(0, len(teams) - 2) * 140
         dialog.geometry(f"{base_width}x{base_height + extra_height}")
         dialog.minsize(base_width, base_height)
@@ -763,6 +763,8 @@ class FCPayoutApp:
         return result[0]
 
     def copy_payout_mail(self):
+        self.on_buyback_focus_out()
+        
         def format_name(participant):
             if participant.character_id:
                 return f"<url=showinfo:1383//{participant.character_id}>{participant.name}</url>"
@@ -773,13 +775,33 @@ class FCPayoutApp:
         scouts = [p for p in self.participants if p.included and p.scout]
         lines = [p for p in self.participants if p.included and not p.scout]
 
-        scout_member_lines = "\n".join(
-            f"- {format_name(p)} (50% = {p.share:,.2f} ISK)" for p in scouts
-        )
+        max_line_shares = sum([p.num_shares for p in lines])
+        max_scout_shares = sum([p.num_shares for p in scouts])
 
-        line_member_lines = "\n".join(
-            f"- {format_name(p)}: {p.share:,.2f} ISK" for p in lines
-        )
+        scout_member_lines = ""
+        for p in scouts:
+            scout_member_lines += f"- {format_name(p)}"
+            if len(scouts) == 1:
+                scout_member_lines += " (50% = "
+            else:
+                scout_member_lines += ": "
+            
+            scout_member_lines += f"{p.share:,.2f} ISK"
+            if len(scouts) == 1:
+                scout_member_lines += ")"
+            elif self.dynamic_shares_enabled:
+                scout_member_lines += f"   {p.num_shares}/{max_scout_shares} shares"
+
+            scout_member_lines += "\n"
+
+
+        line_member_lines = ""
+        for p in lines:
+            line_member_lines += f"- {format_name(p)}: {p.share:,.2f} ISK"
+            if self.dynamic_shares_enabled:
+                line_member_lines += f"   {p.num_shares}/{max_line_shares} shares"
+            line_member_lines += "\n"
+
 
         message = f"""
 SEND TO:
@@ -793,7 +815,6 @@ Buyback Total: {self.buyback_isk:,.2f} ISK
 
 Scout(s):
 {scout_member_lines if scout_member_lines else 'None'}
-
 Line Members:
 {line_member_lines if line_member_lines else 'None'}
 """
