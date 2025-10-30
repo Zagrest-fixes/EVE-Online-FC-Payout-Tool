@@ -63,7 +63,7 @@ python FC_Payout_tool.py
 You will be able to:
 - Enter Buyback ISK amount
 - Import pilots in bulk from br.evetools.org by going to report ---> composition ---> chars and copying pilots including their photo and name.
-- Import pilots in bulk by name with a list of names each on its own line.
+- Import pilots in bulk by name with a list of names each on its own line or as a comma seperated list.
 - Import pilots from a fat link by copy pasting the names (can and likely will include the system and ship they were in when they clicked the link. These will be ignored)
 - Import pilots automatically from a br.evetools.org URL
 - Mark scouts and exclude pilots from payout
