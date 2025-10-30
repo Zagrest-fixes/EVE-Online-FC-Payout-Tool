@@ -306,6 +306,8 @@ class FCPayoutApp:
             except ValueError:
                 print('Input value is not an integer')
                 return
+        elif column == '#6':
+            pyperclip.copy(f"{participant.share}")
 
         self.recalculate_shares()
 
@@ -800,6 +802,9 @@ class FCPayoutApp:
                 scout_member_lines += f"   {p.num_shares}/{max_scout_shares} shares"
 
             scout_member_lines += "\n"
+
+        if scout_member_lines == "":
+            scout_member_lines = "\n"
 
 
         line_member_lines = ""
