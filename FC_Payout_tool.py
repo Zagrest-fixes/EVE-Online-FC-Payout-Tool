@@ -334,7 +334,7 @@ class FCPayoutApp:
             self.buyback_entry.config(bg="white")
 
     def import_from_paste(self):
-        raw = self.ask_multiline_text("Import Pilots", "Paste pilot data (BR composition, FAT link pilots, or one name per line):")
+        raw = self.ask_multiline_text("Import Pilots", "Paste pilot data (BR composition, FAT link pilots, one name per line, or comma seperated names")
         if raw is None:
             return
 
@@ -355,6 +355,13 @@ class FCPayoutApp:
                 name = line.split("\t", 1)[0].strip()
                 if name and name not in IGNORED_CHAR_NAMES:
                     names.append(name)
+        elif "," in raw:
+            names = []
+            for line in lines:
+                for name in line.split(","):
+                    name_fixed = name.strip()
+                    if name_fixed:
+                        names.append(name_fixed)
         else:
             names = [line for line in lines if line not in IGNORED_CHAR_NAMES]
 
