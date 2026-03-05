@@ -7,7 +7,7 @@ Tool to help fc do less and faster paperwork when doing payouts
 
 ### Download from Releases
 
-Pre-built executables for Windows, Linux, and macOS are automatically generated for each release. You can download them from the [Releases page](https://github.com/TsuroTsero/EVE-Online-FC-Payout-Tool/releases) without needing Python installed.
+Pre-built executables for Windows, Linux, and macOS are automatically generated for each release. You can download them from the [Releases page]([https://github.com/TsuroTsero/EVE-Online-FC-Payout-Tool/releases](https://github.com/Zagrest-fixes/EVE-Online-FC-Payout-Tool/releases)) without needing Python installed.
 
 **Available downloads**
 - `FC-Payout-Tool-vX.Y.Z-Windows.exe` - Windows executable (no console window)
