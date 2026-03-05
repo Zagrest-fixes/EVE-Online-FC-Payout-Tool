@@ -1,8 +1,10 @@
+import datetime
 import os
 import contextlib
 import io
 import sys
 from pathlib import Path
+import csv
 
 DEFAULT_PLAYWRIGHT_CACHE = Path(os.path.expanduser('~')) / '.playwright-browsers'
 os.environ.setdefault('PLAYWRIGHT_BROWSERS_PATH', str(DEFAULT_PLAYWRIGHT_CACHE))
@@ -35,7 +37,7 @@ except OSError:
     pass
 
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
+from tkinter import ttk, messagebox, simpledialog, filedialog
 import re
 from dataclasses import dataclass
 from typing import Optional
@@ -248,6 +250,9 @@ class FCPayoutApp:
         tk.Button(button_frame, text="Toggle Dynamic Shares", command=self.toggle_dynamic_shares, bg="#66ffff").pack(
             side=tk.LEFT, padx=4, expand=True
         )
+        tk.Button(button_frame, text="Export", command=self.export, bg="#ff584d").pack(
+            side=tk.LEFT, padx=4, expand=True
+        )
 
         tk.Label(root, text="Participants:").pack(anchor="w", padx=8, pady=(10, 0))
         self.participant_tree = ttk.Treeview(root, columns=("Include", "Scout", "Name", "Found ID", "Share Count", "Share"), show="headings")
@@ -444,7 +449,7 @@ class FCPayoutApp:
 
             # Find all character links and associate with nearby alliance
             team_characters = {}
-            for match in re.finditer(r'href="[^"]*character/(\d+)/"[^>]*>([^<]+)<', html):
+            for match in re.finditer(r'href="[^"]*character/(\d+)"[^>]*>([^<]+)<', html):
                 char_id = match.group(1)
                 char_name = match.group(2).strip()
 
@@ -669,6 +674,17 @@ class FCPayoutApp:
                 participant.num_shares = default_shares
             self.default_dynamic_shares = default_shares
         self.refresh_tree()
+
+    def export(self):
+        filename = filedialog.asksaveasfilename(
+            defaultextension=".tsv",
+            filetypes=[("TSV", "*.tsv")]
+        )
+        with open(filename, "w") as file:
+            tsv = csv.writer(file, delimiter='\t')
+            time = datetime.datetime.now(datetime.timezone.utc)
+            for person in self.participants:
+                tsv.writerow([time, person.name, person.character_id, person.share])
 
     @property
     def dynamic_shares_enabled(self):
