@@ -43,7 +43,7 @@ jobs:
     - name: Update version in script
       shell: bash
       run: |
-        sed -i "s/__version__ = \"dev\"/__version__ = \"$VERSION\"/" FC_Payout_tool.py
+        sed -i.bak "s/__version__ = \"dev\"/__version__ = \"$VERSION\"/" FC_Payout_tool.py && rm FC_Payout_tool.py.bak
 
     - name: Set up Python
       uses: actions/setup-python@v5
