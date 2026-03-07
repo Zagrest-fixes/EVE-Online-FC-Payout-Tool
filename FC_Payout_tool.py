@@ -9,6 +9,8 @@ import csv
 DEFAULT_PLAYWRIGHT_CACHE = Path(os.path.expanduser('~')) / '.playwright-browsers'
 os.environ.setdefault('PLAYWRIGHT_BROWSERS_PATH', str(DEFAULT_PLAYWRIGHT_CACHE))
 
+# This will be auto updated by the build script. Do not change.
+__version__ = "dev"
 
 def _run_playwright_install_cli() -> None:
     from playwright.__main__ import main as playwright_cli_main
@@ -45,6 +47,53 @@ import pyperclip
 import requests
 from playwright.sync_api import sync_playwright
 
+
+def version_to_tuple(version: str) -> None | tuple[int, int, int]:
+    match = re.match(r"^v(?P<major>\d+)(\.(?P<minor>\d+))?(\.(?P<patch>\d+))?$", version)
+    if match:
+        groups = match.groupdict(default=0)
+        try:
+            return (int(groups["major"]), int(groups["minor"]), int(groups["patch"]))
+        except ValueError:
+            print("Failed to parse version number")
+    return None
+
+def check_for_update() -> bool:
+    OWNER = "Zagrest-fixes"
+    REPO = "EVE-Online-FC-Payout-Tool"
+
+    url = f"https://api.github.com/repos/{OWNER}/{REPO}/tags"
+    response = requests.get(url)
+    if response.status_code == 200:
+        tags_json = response.json()
+        if not tags_json:
+            return False
+        
+        versions = []
+        TAG_NAME = "name"
+        for tag in tags_json:
+            if TAG_NAME not in tag:
+                print("Found tag without name")
+                continue
+            version = version_to_tuple(tag[TAG_NAME])
+            if version is not None:
+                versions.append(version)
+
+        versions.sort(reverse=True)
+
+        if __version__ == "dev":
+            return False
+        else:
+            version = version_to_tuple(__version__)
+            if version is None:
+                return False
+            print(f"{version} {versions[0]}")
+            return version < versions[0]
+    else :
+        print(f"Unable to get verions {response.status_code}")
+        
+    return False
+    print(response.content)
 
 def _chromium_relative_path() -> Path:
     if sys.platform.startswith('win'):
@@ -218,6 +267,16 @@ class FCPayoutApp:
         self.participants = []
         self.buyback_isk = 0.0
         self.last_buyback_value = "0.00"
+
+        tk.Label(root, text=f"Version: {__version__}").pack(anchor="w", padx=8, pady=(10, 0))
+
+        update_text = "No update available"
+        fg_color = "Black"
+        if check_for_update():
+            update_text = "Update available on github"
+            fg_color = "Green"
+        
+        tk.Label(root, text=update_text, fg=fg_color).pack(anchor="w", padx=8, pady=(10, 0))
 
         tk.Label(root, text="Buyback Settings:").pack(anchor="w", padx=8, pady=(10, 0))
         buyback_frame = tk.Frame(root)

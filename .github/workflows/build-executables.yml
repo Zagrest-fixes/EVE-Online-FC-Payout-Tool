@@ -40,6 +40,13 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Version: $VERSION"
 
+    - name: Update version in script
+      shell: bash
+      run: |
+        # Use sed to replace the dev version string with the actual tag/hash
+        # Using -i.bak for cross-platform compatibility with BSD sed on macOS
+        sed -i "s/__version__ = \"dev\"/__version__ = \"${{ steps.version.outputs.version }}\"/" FC_Payout_tool.py
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
