@@ -43,6 +43,7 @@ jobs:
     - name: Update version in script
       shell: bash
       run: |
+        VERSION="${{ steps.version.outputs.version }}"
         sed -i.bak "s/__version__ = \"dev\"/__version__ = \"$VERSION\"/" FC_Payout_tool.py && rm FC_Payout_tool.py.bak
 
     - name: Set up Python
