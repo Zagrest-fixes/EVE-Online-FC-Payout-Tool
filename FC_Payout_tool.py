@@ -204,7 +204,7 @@ def has_matching_link(tag, pattern):
     return tag.has_attr("href") and \
     re.search(pattern, tag["href"]) is not None
 
-CHARACTER_REGEX = r"zkillboard\.com/(character|kill)/\d+"
+CHARACTER_REGEX = r"zkillboard\.com/(character|kill)/(?P<char_id>\d+)"
 
 def is_character(tag):
     return has_matching_link(tag, CHARACTER_REGEX) \
@@ -287,11 +287,6 @@ def parse_br(html):
         })
     
     return team_data
-
-    
-            
-        
-    
 
 def parse_war_beacon(html):
     page = BeautifulSoup(html, 'html.parser')
