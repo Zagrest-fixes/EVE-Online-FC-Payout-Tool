@@ -607,9 +607,9 @@ class FCPayoutApp:
         
         WAR_BEACON = "war_beacon"
         BR = "br"
-        if "warbeacon.net/br" in url:
+        if "warbeacon.net" in url:
             link_type = WAR_BEACON
-        elif "br.evetools.org/br" in url:
+        elif "br.evetools.org" in url:
             link_type = BR
         else:
             messagebox.showerror("Error", "Unkown url. We only support Warbeacon and br right now.")
