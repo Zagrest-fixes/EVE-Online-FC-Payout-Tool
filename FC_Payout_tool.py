@@ -431,7 +431,7 @@ class FCPayoutApp:
         tk.Button(button_frame, text="Import from Paste", command=self.import_from_paste, bg="#FF55FF").pack(
             side=tk.LEFT, padx=4, expand=True
         )
-        tk.Button(button_frame, text="Import from BR URL", command=self.import_from_br_url, bg="#ff99cc").pack(
+        tk.Button(button_frame, text="Import from BR/WB URL", command=self.import_from_br_url, bg="#ff99cc").pack(
             side=tk.LEFT, padx=4, expand=True
         )
         tk.Button(button_frame, text="Remove Selected", command=self.remove_selected, bg="#66b3ff").pack(
