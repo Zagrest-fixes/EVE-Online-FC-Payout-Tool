@@ -1,3 +1,4 @@
+from collections import defaultdict
 import datetime
 import os
 import contextlib
@@ -5,6 +6,7 @@ import io
 import sys
 from pathlib import Path
 import csv
+from bs4 import BeautifulSoup
 
 DEFAULT_PLAYWRIGHT_CACHE = Path(os.path.expanduser('~')) / '.playwright-browsers'
 os.environ.setdefault('PLAYWRIGHT_BROWSERS_PATH', str(DEFAULT_PLAYWRIGHT_CACHE))
@@ -190,6 +192,146 @@ def _install_playwright_browser(on_output=None):
         finally:
             emitter.flush()
 
+BR_TEAM_REGEX = r"Team [A-Z]"
+
+def is_team_header(tag):
+    return tag.name == "h4" and re.search(BR_TEAM_REGEX, tag.get_text()) is not None
+
+def is_class(tag, class_str):
+    return tag.has_attr("class") and tag["class"] == [class_str]
+
+def has_matching_link(tag, pattern):
+    return tag.has_attr("href") and \
+    re.search(pattern, tag["href"]) is not None
+
+CHARACTER_REGEX = r"zkillboard\.com/(character|kill)/\d+"
+
+def is_character(tag):
+    return has_matching_link(tag, CHARACTER_REGEX) \
+    and tag.find(lambda t: is_class(t, "killmail-character-name")) is not None
+
+ALLIANCE_REGEX = r"kb\.evetools\.org/(alliance|corporation)/\d+"
+ALLIANCE_ID_REGEX = r"kb\.evetools\.org/alliance/(?P<ally_id>\d+)"
+CORP_ID_REGEX = r"kb\.evetools\.org/corporation/(?P<corp_id>\d+)"
+
+def br_has_alliances(tag):
+    return tag.find(lambda t: has_matching_link(t, ALLIANCE_REGEX)) is not None
+
+CORP_ID_IMAGE = r"img\.evetools\.org/sdeimages/corporations/(?P<corp_id>\d+)/logo"
+ALLY_ID_IMAGE = r"img\.evetools\.org/sdeimages/alliances/(?P<ally_id>\d+)/logo"
+BR_CHAR_ID = r"kb\.evetools\.org/character/(?P<char_id>\d+)"
+
+def has_corp_image(tag):
+    return tag.has_attr("src") and re.search(CORP_ID_IMAGE, tag["src"]) is not None
+
+def has_ally_image(tag):
+    return tag.has_attr("src") and re.search(ALLY_ID_IMAGE, tag["src"]) is not None
+
+def br_player_tag(tag):
+    return tag.find(has_corp_image) is not None
+
+def parse_br(html):
+    page = BeautifulSoup(html, 'html.parser')
+    team_headers = page.find_all(is_team_header)
+    ally_team = dict()
+    corp_team = dict()
+    teams = dict()
+    teams_alliances = dict()
+    for team in team_headers:
+        team_name = re.search(BR_TEAM_REGEX, team.get_text()).group(0)
+        teams[team_name] = []
+        teams_alliances[team_name] = []
+        alliances_tag = team.find_next_sibling(br_has_alliances)
+        alliences = alliances_tag.find_all(lambda tag: has_matching_link(tag, ALLIANCE_REGEX))
+        for allience in alliences:
+            name = allience.get_text()
+            ally_match = re.search(ALLIANCE_ID_REGEX, allience["href"])
+            corp_match = re.search(CORP_ID_REGEX, allience["href"])
+            teams_alliances[team_name].append(name)
+            if ally_match:
+                id = ally_match.group("ally_id")
+                ally_team[id] = team_name
+            else:
+                id = corp_match.group("corp_id")
+                corp_team[id] = team_name
+
+    inside_list_tags = page.find_all(lambda tag: tag.get_text() == "Dmg [Kills]")
+    for inside_list_tag in inside_list_tags:
+        sibling_of_people = inside_list_tag.find_parent(lambda tag: tag.find_next_sibling(br_player_tag))
+        player_tags = sibling_of_people.find_next_siblings(br_player_tag)
+        for player_tag in player_tags:
+            player_name_child = player_tag.find(lambda tag: has_matching_link(tag, BR_CHAR_ID))
+            char_id = int(re.search(BR_CHAR_ID, player_name_child["href"]).group("char_id"))
+            char_name = player_name_child.parent.get_text()
+
+            char = {
+                'name': char_name,
+                'id': char_id
+            }
+
+            corp_tag = player_tag.find(has_corp_image)
+            corp_id = re.search(CORP_ID_IMAGE, corp_tag["src"]).group("corp_id")
+            if corp_id in corp_team:
+                teams[corp_team[corp_id]].append(char)
+            else:
+                ally_tag = player_tag.find(has_ally_image)
+                ally_id = re.search(ALLY_ID_IMAGE, ally_tag["src"]).group("ally_id")
+                teams[ally_team[ally_id]].append(char)
+
+    team_data = []
+    for team in teams:
+        team_data.append({
+            'name': team,
+            'alliances': ', '.join(teams_alliances[team]) if teams_alliances[team] else 'Unknown',
+            'characters': teams[team]
+        })
+    
+    return team_data
+
+    
+            
+        
+    
+
+def parse_war_beacon(html):
+    page = BeautifulSoup(html, 'html.parser')
+    team_data = []
+
+    teams = page.find_all(lambda tag: is_class(tag, "compact-team-card"))
+    for team in teams:
+        team_name_tag = team.find(lambda tag:is_class(tag, "team-header"))
+        team_name = re.match(r"Team \d+", team_name_tag.get_text()).group(0)
+
+        alliances = []
+        alliances_tags = team.find_all(lambda tag: is_class(tag, "faction-name"))
+        for alliance in alliances_tags:
+            name = alliance.get_text()
+            alliances.append(name)
+
+        character_tags = team.find_all(lambda tag: is_character(tag))
+        chars_seen = set()
+        characters = []
+        for character_tag in character_tags:
+            id = int(re.search(CHARACTER_REGEX, character_tag["href"]).group("char_id"))
+            name_tag = character_tag.find(lambda tag: is_class(tag, "killmail-character-name"))
+            name = name_tag.get_text()
+            if name in chars_seen:
+                continue
+            chars_seen.add(name)
+            characters.append({
+                'name': name,
+                'id': id
+            })
+        
+        team_data.append({
+            'name': team_name,
+            'alliances': ', '.join(alliances) if alliances else 'Unknown',
+            'characters': characters
+        })
+    
+
+    return team_data
+    
 
 class _StreamEmitter(io.StringIO):
     def __init__(self, callback):
@@ -467,13 +609,25 @@ class FCPayoutApp:
         url = result[0]
         if not url:
             return
-
+        
+        WAR_BEACON = "war_beacon"
+        BR = "br"
+        if "warbeacon.net/br" in url:
+            link_type = WAR_BEACON
+        elif "br.evetools.org/br" in url:
+            link_type = BR
+        else:
+            messagebox.showerror("Error", "Unkown url. We only support Warbeacon and br right now.")
+            return
+        
         try:
             self.root.config(cursor="watch")
             self.root.update()
 
             with sync_playwright() as playwright:
                 browser = _launch_chromium_with_retry(playwright)
+                tries = 0
+                MAX_TRIES = 4
                 try:
                     page = browser.new_page()
                     page.goto(url, timeout=60000)
@@ -482,88 +636,16 @@ class FCPayoutApp:
                 finally:
                     browser.close()
 
-            if 'Team A' not in html and 'Team B' not in html:
+            if link_type == BR and 'Team A' not in html and 'Team B' not in html or \
+                link_type == WAR_BEACON and  'Team 1' not in html and 'Team 2' not in html:
                 messagebox.showerror("Error", "Page loaded but no team data found. The page may still be loading.")
                 return
 
             # Parse teams, alliances, corporations, and characters
-            team_headers = list(re.finditer(r'<h4[^>]*>Team ([A-Z])[^<]*</h4>', html))
-            alliance_to_team = {}
-            corp_to_team = {}
-            for idx, match in enumerate(team_headers):
-                team_letter = match.group(1)
-                start = match.end()
-                end = team_headers[idx + 1].start() if idx + 1 < len(team_headers) else len(html)
-                header_chunk = html[start:end]
-
-                for ally_match in re.finditer(r'allyID-(\d+)', header_chunk):
-                    ally_id = ally_match.group(1)
-                    if ally_id not in alliance_to_team:
-                        alliance_to_team[ally_id] = team_letter
-
-                for corp_match in re.finditer(r'corpID-(\d+)', header_chunk):
-                    corp_id = corp_match.group(1)
-                    if corp_id not in corp_to_team:
-                        corp_to_team[corp_id] = team_letter
-
-            # Find all character links and associate with nearby alliance
-            team_characters = {}
-            for match in re.finditer(r'href="[^"]*character/(\d+)"[^>]*>([^<]+)<', html):
-                char_id = match.group(1)
-                char_name = match.group(2).strip()
-
-                if char_name in IGNORED_CHAR_NAMES:
-                    continue
-
-                search_chunk = html[match.start():match.start()+2000]
-                ally_match = re.search(r'allyID-(\d+)', search_chunk)
-                corp_match = re.search(r'corpID-(\d+)', search_chunk)
-
-                ally_id = ally_match.group(1) if ally_match else None
-                corp_id = corp_match.group(1) if corp_match else None
-
-                team_letter = None
-                if ally_id:
-                    team_letter = alliance_to_team.get(ally_id)
-                if not team_letter and corp_id:
-                    team_letter = corp_to_team.get(corp_id)
-
-                if not team_letter:
-                    continue
-
-                if team_letter not in team_characters:
-                    team_characters[team_letter] = {'chars': [], 'alliances': set(), 'corporations': set()}
-
-                if not any(c['id'] == char_id for c in team_characters[team_letter]['chars']):
-                    team_characters[team_letter]['chars'].append({'id': char_id, 'name': char_name})
-                    if ally_id:
-                        team_characters[team_letter]['alliances'].add(ally_id)
-                    if corp_id:
-                        team_characters[team_letter]['corporations'].add(corp_id)
-
-            # Build final team data with alliance names
-            team_data = []
-            for team_letter in sorted(team_characters.keys()):
-                # Get alliance names
-                alliance_names = []
-                for ally_id in team_characters[team_letter]['alliances']:
-                    ally_name_match = re.search(r'alliance/{}/"[^>]*>([^<]+)<'.format(ally_id), html)
-                    if ally_name_match:
-                        alliance_names.append(ally_name_match.group(1))
-
-                corp_names = []
-                for corp_id in team_characters[team_letter]['corporations']:
-                    corp_name_match = re.search(r'corporation/{}/"[^>]*>([^<]+)<'.format(corp_id), html)
-                    if corp_name_match:
-                        corp_names.append(corp_name_match.group(1))
-
-                affil_names = sorted(set(alliance_names + corp_names))
-
-                team_data.append({
-                    'name': f"Team {team_letter}",
-                    'alliances': ', '.join(affil_names) if affil_names else 'Unknown',
-                    'characters': team_characters[team_letter]['chars']
-                })
+            if link_type == BR:
+                team_data = parse_br(html)
+            elif link_type == WAR_BEACON:
+                team_data = parse_war_beacon(html)
 
             if not team_data:
                 messagebox.showerror("Error", "No teams found.")

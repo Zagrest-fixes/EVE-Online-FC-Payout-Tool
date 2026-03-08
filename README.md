@@ -43,6 +43,7 @@ The packages installed will be:
 - `pyperclip` – copying in-game mail text to clipboard
 - `requests` - handles character id lookups and battle report imports
 - `playwright` - pulls br.evetools.org data for parsing
+- `beautifulsoup4` - parses the warbeacon/br html to extract team information
 
 ### Step 3: Install playwright
 
