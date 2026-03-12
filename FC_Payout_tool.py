@@ -11,6 +11,10 @@ from bs4 import BeautifulSoup
 DEFAULT_PLAYWRIGHT_CACHE = Path(os.path.expanduser('~')) / '.playwright-browsers'
 os.environ.setdefault('PLAYWRIGHT_BROWSERS_PATH', str(DEFAULT_PLAYWRIGHT_CACHE))
 
+DEFAULT_SETTINGS_CACHE = Path(os.path.expanduser('~')) / '.FC_payout_settings.txt'
+
+DARKMODE = "darkmode"
+
 # This will be auto updated by the build script. Do not change.
 __version__ = "dev"
 
@@ -59,6 +63,24 @@ def version_to_tuple(version: str) -> None | tuple[int, int, int]:
         except ValueError:
             print("Failed to parse version number")
     return None
+
+def load_settings():
+    default = {
+            DARKMODE: 'n'
+        }
+    if not Path(DEFAULT_SETTINGS_CACHE).exists():
+        return default
+    with open(DEFAULT_SETTINGS_CACHE, 'r') as file:
+        for line in file.readlines():
+            elements = line.split("=")
+            key = elements[0]
+            value = elements[1]
+            default[key] = value
+    return default
+
+def save_settings(settings):
+    with open(DEFAULT_SETTINGS_CACHE, 'w') as file:
+        file.writelines(map(lambda x: x[0] + "=" + x[1], settings.items()))
 
 def check_for_update() -> bool:
     OWNER = "Zagrest-fixes"
@@ -396,7 +418,32 @@ class Participant:
 
 class FCPayoutApp:
     def __init__(self, root):
+        self.settings = load_settings()
+
         self.root = root
+        darkmode = self.settings[DARKMODE] == "y"
+        if darkmode:
+            self.bg = "gray16"
+            self.fg = "white"
+            self.include_bg = "gray19"
+            self.red_highlight = "#332020"
+            self.header_bg = "gray24"
+            self.contrast_bg = "gray21"
+            self.highlight_bg = "gray27"
+        else:
+            self.bg = "white"
+            self.fg = "black"
+            self.include_bg = "gray72"
+            self.header_bg = "gray65"
+            self.contrast_bg = "gray83"
+            self.highlight_bg = "gray63"
+            self.red_highlight = "#ffd6d6"
+
+        root.option_add("*Background", self.bg)
+        root.option_add("*Foreground", self.fg)
+
+        self.root.configure(bg=self.bg)
+
         self.root.title("FC Payout Tool")
 
         self.default_dynamic_shares = None
@@ -405,21 +452,34 @@ class FCPayoutApp:
         self.buyback_isk = 0.0
         self.last_buyback_value = "0.00"
 
-        tk.Label(root, text=f"Version: {__version__}").pack(anchor="w", padx=8, pady=(10, 0))
-
+        update_frame = tk.Frame(root)
+        update_frame.pack(pady=4, fill=tk.X)
+        tk.Label(update_frame, text=f"Version: {__version__}").pack(
+            side=tk.LEFT, padx=4, expand=True
+        )
         update_text = "No update available"
-        fg_color = "Black"
+        fg_color = self.fg
         if check_for_update():
             update_text = "Update available on github"
             fg_color = "Green"
         
-        tk.Label(root, text=update_text, fg=fg_color).pack(anchor="w", padx=8, pady=(10, 0))
+        tk.Label(update_frame, text=update_text, fg=fg_color).pack(
+            side=tk.LEFT, padx=4, expand=True
+        )
+
+
+        tk.Button(update_frame, text="Toggle Dark Mode", command=self.toggle_dark_mode, bg="#7C7C7C", fg="black").pack(
+            side=tk.RIGHT, padx=4, expand=True
+        )
+
+        tk.Checkbutton()
 
         tk.Label(root, text="Buyback Settings:").pack(anchor="w", padx=8, pady=(10, 0))
         buyback_frame = tk.Frame(root)
         buyback_frame.pack(pady=2)
+        buyback_frame.configure()
         tk.Label(buyback_frame, text="Buyback ISK:").pack(side=tk.LEFT)
-        self.buyback_entry = tk.Entry(buyback_frame, width=20)
+        self.buyback_entry = tk.Entry(buyback_frame, width=20, bg=self.contrast_bg)
         self.buyback_entry.pack(side=tk.LEFT)
         self.buyback_entry.insert(0, "0.00")
         self.buyback_entry.bind("<FocusOut>", self.on_buyback_focus_out)
@@ -427,32 +487,46 @@ class FCPayoutApp:
         tk.Label(root, text="Controls:").pack(anchor="w", padx=8, pady=(10, 0))
         button_frame = tk.Frame(root)
         button_frame.pack(pady=4, fill=tk.X)
+        button_frame.configure()
 
-        tk.Button(button_frame, text="Import from Paste", command=self.import_from_paste, bg="#FF55FF").pack(
+        tk.Button(button_frame, text="Import from Paste", command=self.import_from_paste, bg="#FF55FF", fg="black").pack(
             side=tk.LEFT, padx=4, expand=True
         )
-        tk.Button(button_frame, text="Import from BR/WB URL", command=self.import_from_br_url, bg="#ff99cc").pack(
+        tk.Button(button_frame, text="Import from BR/WB URL", command=self.import_from_br_url, bg="#ff99cc", fg="black").pack(
             side=tk.LEFT, padx=4, expand=True
         )
-        tk.Button(button_frame, text="Remove Selected", command=self.remove_selected, bg="#66b3ff").pack(
+        tk.Button(button_frame, text="Remove Selected", command=self.remove_selected, bg="#66b3ff", fg="black").pack(
             side=tk.LEFT, padx=4, expand=True
         )
-        tk.Button(button_frame, text="Clear All", command=self.clear_all, bg="#ffa64d").pack(
+        tk.Button(button_frame, text="Clear All", command=self.clear_all, bg="#ffa64d", fg="black").pack(
             side=tk.LEFT, padx=4, expand=True
         )
-        tk.Button(button_frame, text="Copy Mail", command=self.copy_payout_mail, bg="#66ff66").pack(
+        tk.Button(button_frame, text="Copy Mail", command=self.copy_payout_mail, bg="#66ff66", fg="black").pack(
             side=tk.LEFT, padx=4, expand=True
         )
-        tk.Button(button_frame, text="Toggle Dynamic Shares", command=self.toggle_dynamic_shares, bg="#66ffff").pack(
+        tk.Button(button_frame, text="Toggle Dynamic Shares", command=self.toggle_dynamic_shares, bg="#66ffff", fg="black").pack(
             side=tk.LEFT, padx=4, expand=True
         )
-        tk.Button(button_frame, text="Export", command=self.export, bg="#ff584d").pack(
+        tk.Button(button_frame, text="Export", command=self.export, bg="#ff584d", fg="black").pack(
             side=tk.LEFT, padx=4, expand=True
         )
 
+        style = ttk.Style()
+        style.theme_use("default")
+        style.configure("Treeview", 
+                background=self.include_bg, 
+                foreground=self.fg, 
+                fieldbackground=self.contrast_bg, 
+                borderwidth=0)
+
+        style.configure("Treeview.Heading", 
+            background=self.header_bg,
+            foreground=self.fg, 
+            relief="flat")
+        
         tk.Label(root, text="Participants:").pack(anchor="w", padx=8, pady=(10, 0))
         self.participant_tree = ttk.Treeview(root, columns=("Include", "Scout", "Name", "Found ID", "Share Count", "Share"), show="headings")
-        self.participant_tree.tag_configure("excluded", background="#ffd6d6")
+        self.participant_tree.tag_configure("excluded", background=self.red_highlight)
         self.participant_tree.tag_configure("included", font=("Segoe UI", 10))
         self.participant_tree.tag_configure("boldshare", font=("Segoe UI", 10, "bold"))
         for col in self.participant_tree["columns"]:
@@ -474,8 +548,8 @@ class FCPayoutApp:
         self.buyback_isk = 0.0
         self.buyback_entry.delete(0, tk.END)
         self.buyback_entry.insert(0, "0.00")
+        self.buyback_entry.configure(bg=self.contrast_bg)
         self.last_buyback_value = "0.00"
-        self.buyback_entry.config(bg="white")
         self.refresh_tree()
 
     def remove_selected(self):
@@ -520,7 +594,7 @@ class FCPayoutApp:
         cleaned = re.sub(r"[^\d.]", "", raw)
 
         if cleaned == "":
-            self.buyback_entry.config(bg="#ffcccc")
+            self.buyback_entry.config(bg=self.red_highlight)
             return
 
         if cleaned != self.last_buyback_value:
@@ -528,13 +602,12 @@ class FCPayoutApp:
                 self.buyback_isk = float(cleaned)
                 self.buyback_entry.delete(0, tk.END)
                 self.buyback_entry.insert(0, f"{self.buyback_isk:,.2f}")
-                self.buyback_entry.config(bg="white")
                 self.last_buyback_value = cleaned
                 self.recalculate_shares()
             except ValueError:
                 self.buyback_entry.config(bg="#ffcccc")
         else:
-            self.buyback_entry.config(bg="white")
+            self.buyback_entry.config(bg=self.contrast_bg)
 
     def import_from_paste(self):
         raw = self.ask_multiline_text("Import Pilots", "Paste pilot data (BR composition, FAT link pilots, one name per line, or comma seperated names")
@@ -576,12 +649,13 @@ class FCPayoutApp:
         dialog.title("Import from BR URL")
         dialog.geometry("450x150")
         dialog.transient(self.root)
+        dialog.configure(bg=self.bg)
 
         result = [None]
 
         tk.Label(dialog, text="Enter the battle report URL:", font=("Segoe UI", 10)).pack(pady=10)
 
-        entry = tk.Entry(dialog, width=70, font=("Segoe UI", 10))
+        entry = tk.Entry(dialog, width=70, font=("Segoe UI", 10), bg=self.contrast_bg)
         entry.pack(padx=20, pady=10, fill=tk.X)
         entry.focus_set()
 
@@ -594,8 +668,8 @@ class FCPayoutApp:
 
         button_frame = tk.Frame(dialog)
         button_frame.pack(pady=10)
-        tk.Button(button_frame, text="OK", command=on_ok, width=10).pack(side=tk.LEFT, padx=5)
-        tk.Button(button_frame, text="Cancel", command=on_cancel, width=10).pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="OK", command=on_ok, width=10, bg=self.contrast_bg).pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="Cancel", command=on_cancel, width=10, bg=self.contrast_bg).pack(side=tk.LEFT, padx=5)
 
         entry.bind("<Return>", lambda e: on_ok())
 
@@ -684,8 +758,8 @@ class FCPayoutApp:
         info_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
 
         team_frames = []
-        normal_bg = "#f3f3f3"
-        highlight_bg = "#cde4ff"
+        normal_bg = self.contrast_bg
+        highlight_bg = self.highlight_bg
 
         def set_frame_bg(frame, bg):
             frame.config(bg=bg)
@@ -745,7 +819,7 @@ class FCPayoutApp:
             dialog.result = None
             dialog.destroy()
 
-        accept_button = tk.Button(button_frame, text="Accept", width=15, state=tk.DISABLED, command=accept_selection, bg="#66ff66")
+        accept_button = tk.Button(button_frame, text="Accept", width=15, state=tk.DISABLED, command=accept_selection, bg="#33AA33")
         accept_button.pack(side=tk.LEFT, padx=10)
 
         tk.Button(button_frame, text="Cancel", width=15, command=cancel_selection).pack(side=tk.LEFT, padx=10)
@@ -816,6 +890,8 @@ class FCPayoutApp:
             defaultextension=".tsv",
             filetypes=[("TSV", "*.tsv")]
         )
+        if filename == () or filename == '':
+            return
         with open(filename, "w") as file:
             tsv = csv.writer(file, delimiter='\t')
             time = datetime.datetime.now(datetime.timezone.utc)
@@ -859,6 +935,17 @@ class FCPayoutApp:
 
         self.refresh_tree()
 
+    def toggle_dark_mode(self):
+        if self.settings[DARKMODE] == "y":
+            self.settings[DARKMODE] = "n"
+        else:
+            self.settings[DARKMODE] = "y"
+        
+        save_settings(self.settings)
+
+        theme = "dark mode" if self.settings[DARKMODE] == "y" else "light mode"
+        messagebox.showinfo("Restart", f"Restart the app to apply {theme}")
+
     def refresh_tree(self):
         self.participant_tree.delete(*self.participant_tree.get_children())
         included = [p for p in self.participants if p.included]
@@ -888,7 +975,7 @@ class FCPayoutApp:
         dialog = tk.Toplevel(self.root)
         dialog.title(title)
         dialog.geometry("600x450")
-        dialog.minsize(600, 450)
+        dialog.minsize(800, 450)
 
         result = [None]
 
@@ -904,17 +991,18 @@ class FCPayoutApp:
         # Pack buttons first at the bottom so they reserve their space
         button_frame = tk.Frame(dialog)
         button_frame.pack(side=tk.BOTTOM, pady=15)
-        tk.Button(button_frame, text="OK", command=on_ok, width=10).pack(side=tk.LEFT, padx=5)
-        tk.Button(button_frame, text="Cancel", command=on_cancel, width=10).pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="OK", command=on_ok, width=10, bg=self.contrast_bg).pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="Cancel", command=on_cancel, width=10, bg=self.contrast_bg).pack(side=tk.LEFT, padx=5)
 
         # Now pack the text frame to fill remaining space
         text_frame = tk.Frame(dialog)
+        text_frame.configure(bg=self.contrast_bg)
         text_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(5, 10))
 
         scrollbar = tk.Scrollbar(text_frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        text_widget = tk.Text(text_frame, wrap=tk.WORD, yscrollcommand=scrollbar.set)
+        text_widget = tk.Text(text_frame, wrap=tk.WORD, yscrollcommand=scrollbar.set, bg=self.contrast_bg)
         text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=text_widget.yview)
 
