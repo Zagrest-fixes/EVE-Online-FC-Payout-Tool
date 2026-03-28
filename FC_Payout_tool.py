@@ -724,10 +724,9 @@ class FCPayoutApp:
             if selected_team is None:
                 return
 
-            count = 0
-            for char in team_data[selected_team]['characters']:
-                self.add_participant(Participant(char['name'], character_id=char['id']))
-                count += 1
+            chars = list(map(lambda x: x['name'], team_data[selected_team]['characters']))
+            count = len(chars)
+            self.add_and_lookup_names(chars)
 
             self.refresh_tree()
             messagebox.showinfo("Success", f"Imported {count} characters!")
