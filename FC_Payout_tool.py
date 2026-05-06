@@ -222,6 +222,9 @@ def is_team_header(tag):
 def is_class(tag, class_str):
     return tag.has_attr("class") and tag["class"] == [class_str]
 
+def class_contains(tag, class_str):
+    return tag.has_attr("class") and class_str in tag["class"]
+
 def has_matching_link(tag, pattern):
     return tag.has_attr("href") and \
     re.search(pattern, tag["href"]) is not None
@@ -230,7 +233,7 @@ CHARACTER_REGEX = r"zkillboard\.com/(character|kill)/(?P<char_id>\d+)"
 
 def is_character(tag):
     return has_matching_link(tag, CHARACTER_REGEX) \
-    and tag.find(lambda t: is_class(t, "killmail-character-name")) is not None
+    and tag.find(lambda t: class_contains(t, "killmail-character-name")) is not None
 
 ALLIANCE_REGEX = r"kb\.evetools\.org/(alliance|corporation)/\d+"
 ALLIANCE_ID_REGEX = r"kb\.evetools\.org/alliance/(?P<ally_id>\d+)"
@@ -316,14 +319,11 @@ def parse_war_beacon(html):
 
     teams = page.find_all(lambda tag: is_class(tag, "compact-team-card"))
     for team in teams:
-        team_name_tag = team.find(lambda tag:is_class(tag, "team-header"))
-        team_name = re.match(r"Team \d+", team_name_tag.get_text()).group(0)
+        team_name_tag = team.find(lambda tag:is_class(tag, "brf-tc-tag-row"))
+        print(team_name_tag.get_text())
+        team_name = team_name_tag.get_text()
 
         alliances = []
-        alliances_tags = team.find_all(lambda tag: is_class(tag, "faction-name"))
-        for alliance in alliances_tags:
-            name = alliance.get_text()
-            alliances.append(name)
 
         character_tags = team.find_all(lambda tag: is_character(tag))
         chars_seen = set()
@@ -683,6 +683,8 @@ class FCPayoutApp:
         BR = "br"
         if "warbeacon.net" in url:
             link_type = WAR_BEACON
+            url = fix_warbeacon_url(url)
+            print(url)
         elif "br.evetools.org" in url:
             link_type = BR
         else:
@@ -1071,6 +1073,11 @@ Line Members:
 """
         pyperclip.copy(message)
 
+
+# removes any #whatever at the end and adds the correct #involved which has the participants on it.
+def fix_warbeacon_url(url):
+    clean_text = url.partition('#')[0]
+    return f"{clean_text.rstrip()}#involved"
 
 if __name__ == "__main__":
     root = tk.Tk()
