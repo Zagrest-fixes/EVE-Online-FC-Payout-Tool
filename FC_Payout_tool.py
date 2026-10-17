@@ -285,9 +285,12 @@ def parse_br(html):
         sibling_of_people = inside_list_tag.find_parent(lambda tag: tag.find_next_sibling(br_player_tag))
         player_tags = sibling_of_people.find_next_siblings(br_player_tag)
         for player_tag in player_tags:
-            player_name_child = player_tag.find(lambda tag: has_matching_link(tag, BR_CHAR_ID))
+            # Structures and other non-pilot rows link to e.g. character/structure-<corp>-<type>, so skip them
+            player_name_child = player_tag.find(lambda tag: has_matching_link(tag, BR_CHAR_ID + r"(?!\d)$"))
+            if player_name_child is None:
+                continue
             char_id = int(re.search(BR_CHAR_ID, player_name_child["href"]).group("char_id"))
-            char_name = player_name_child.parent.get_text()
+            char_name = player_name_child.parent.get_text().strip()
 
             char = {
                 'name': char_name,
@@ -300,8 +303,9 @@ def parse_br(html):
                 teams[corp_team[corp_id]].append(char)
             else:
                 ally_tag = player_tag.find(has_ally_image)
-                ally_id = re.search(ALLY_ID_IMAGE, ally_tag["src"]).group("ally_id")
-                teams[ally_team[ally_id]].append(char)
+                ally_id = re.search(ALLY_ID_IMAGE, ally_tag["src"]).group("ally_id") if ally_tag else None
+                if ally_id in ally_team:
+                    teams[ally_team[ally_id]].append(char)
 
     team_data = []
     for team in teams:
